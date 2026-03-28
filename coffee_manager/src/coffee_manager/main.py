@@ -11,7 +11,6 @@ def test_db(db: Session = Depends(get_db)):
     try:
         result = db.execute(text("SELECT 1")).fetchone()
         return {
-            "status": "200",
             "message": "Database connection successful",
             "db_response": list(result) if result else None,
         }
