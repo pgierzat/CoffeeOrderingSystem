@@ -1,4 +1,6 @@
 coffee_manager/.venv
+coffee_manager/src/coffee_manager/__pycache__/
 coffee_optimizer/.venv
+coffee_optimizer/src/coffee_optimizer/__pycache__/
 .env
 .vscode
