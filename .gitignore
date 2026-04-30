@@ -4,3 +4,4 @@ coffee_optimizer/.venv
 coffee_optimizer/src/coffee_optimizer/__pycache__/
 .env
 .vscode
+bin
