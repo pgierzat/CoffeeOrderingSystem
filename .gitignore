@@ -1,3 +1,4 @@
+# Python
 coffee_manager/.venv
 coffee_manager/src/coffee_manager/__pycache__/
 coffee_optimizer/.venv
@@ -5,3 +6,20 @@ coffee_optimizer/src/coffee_optimizer/__pycache__/
 .env
 .vscode
 bin
+coffee_optimizer/.venv
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Frontend
+coffee_manager/frontend/node_modules/
+coffee_manager/frontend/dist/
+coffee_manager/frontend/.vite/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
