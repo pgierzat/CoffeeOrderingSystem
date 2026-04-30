@@ -1,2 +1,19 @@
+# Python
 coffee_manager/.venv
 coffee_optimizer/.venv
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Frontend
+coffee_manager/frontend/node_modules/
+coffee_manager/frontend/dist/
+coffee_manager/frontend/.vite/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
