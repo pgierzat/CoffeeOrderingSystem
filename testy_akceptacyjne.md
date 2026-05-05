@@ -105,3 +105,36 @@ PZSP2 | Zespół nr 67 | Semestr 26L
 4. Sprawdź aktualny stan kawy w tej lokalizacji.
 
 **Oczekiwany wynik:** Lokalizacja widoczna na liście, limit zapisany, stan magazynowy wyświetla się poprawnie. Przekroczenie limitu sygnalizowane jest w interfejsie.
+
+---
+
+## Blokada dostępu do chronionych widoków bez logowania
+
+**Wymagania:** S9, U12
+
+**Cel:** Sprawdzenie, czy niezalogowany użytkownik nie może uzyskać dostępu do chronionych części systemu przez bezpośrednie wpisanie adresu URL.
+
+**Kroki:**
+1. Wyloguj się z systemu albo otwórz aplikację w trybie incognito.
+2. Spróbuj wejść bezpośrednio na widok panelu głównego, np. dashboard.
+3. Spróbuj wejść bezpośrednio na widok ofert lub historii zamówień.
+4. Spróbuj odświeżyć chroniony widok po wcześniejszym wylogowaniu.
+
+**Oczekiwany wynik:** System nie pokazuje danych aplikacji niezalogowanemu użytkownikowi. Użytkownik zostaje przekierowany na stronę logowania albo otrzymuje komunikat o braku dostępu.
+
+---
+
+## Historia zrealizowanych zamówień
+
+**Wymagania:** S11, U10, U13
+
+**Cel:** Sprawdzenie, czy system zapisuje i poprawnie wyświetla historię zrealizowanych zamówień.
+
+**Kroki:**
+1. Zaloguj się jako Koordynator.
+2. Ustaw parametry zamówienia i uruchom wybór optymalnej oferty.
+3. Zatwierdź wybraną ofertę.
+4. Oznacz zamówienie jako zrealizowane albo przejdź przez podstawowy scenariusz realizacji zamówienia.
+5. Przejdź do widoku historii zamówień.
+
+**Oczekiwany wynik:** Zrealizowane zamówienie znajduje się w historii i zawiera co najmniej datę, dostawcę, cenę, wolumen, lokalizację oraz status realizacji.
