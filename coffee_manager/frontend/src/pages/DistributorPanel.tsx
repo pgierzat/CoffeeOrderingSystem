@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Card, Text, Badge, Button } from '@tremor/react'
 import { mockDistributorSelf } from '../data/mock'
 import { useTheme } from '../context/ThemeContext'
+import { api } from '../api/client'
+import { buildDistributorUpdatePayload } from '../utils/distributorPanelMapper'
 
 type Tier = { threshold: number; price: number }
 
@@ -59,15 +61,43 @@ export default function DistributorPanel() {
   )
   const [delivery, setDelivery] = useState<DeliveryParam[]>(dist.delivery_params)
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const handleLogout = () => {
     localStorage.removeItem('dist_auth')
     navigate('/distributor/login')
   }
 
-  const handleSave = () => {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+  const handleSave = async () => {
+    const apiKey = localStorage.getItem('dist_auth')
+
+    if (!apiKey) {
+      setSaveError('Missing API key. Please sign in again.')
+      setSaved(false)
+      return
+    }
+
+    setSaving(true)
+    setSaved(false)
+    setSaveError('')
+
+    const payload = buildDistributorUpdatePayload(prices, delivery)
+
+    try {
+      await api.distributors.updateOwnPrices(payload, {
+        headers: {
+          'X-Api-Key': apiKey,
+        },
+      })
+
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch {
+      setSaveError('Could not save changes')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const updateDayField = (localId: string, field: 'base_price' | 'availability_kg', value: string) => {
@@ -165,8 +195,6 @@ export default function DistributorPanel() {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-
-        {/* Profile */}
         <Card>
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -187,23 +215,25 @@ export default function DistributorPanel() {
           </div>
         </Card>
 
-        {/* Daily price list */}
         <section>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">
               Daily price list
             </p>
             <div className="flex items-center gap-2">
+              {saving && <Text className="text-xs text-tremor-content-subtle">Saving...</Text>}
               {saved && <Text className="text-xs text-green-600">Saved ✓</Text>}
+              {saveError && <Text className="text-xs text-red-500">{saveError}</Text>}
               <Button size="xs" variant="secondary" onClick={addDay}>+ Add day</Button>
-              <Button size="xs" onClick={handleSave}>Save changes</Button>
+              <Button size="xs" onClick={handleSave} disabled={saving}>
+                {saving ? 'Saving...' : 'Save changes'}
+              </Button>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {sortedPrices.map(p => (
               <Card key={p.local_id} className="space-y-3">
-                {/* Day header */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle shrink-0">Day</span>
@@ -223,7 +253,6 @@ export default function DistributorPanel() {
                   </button>
                 </div>
 
-                {/* Base fields */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className={labelCls}>Base price (PLN/kg)</label>
@@ -247,7 +276,6 @@ export default function DistributorPanel() {
                   </div>
                 </div>
 
-                {/* Discount tiers */}
                 <div className="border-t border-tremor-border dark:border-dark-tremor-border pt-2 space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-medium text-tremor-content dark:text-dark-tremor-content">
@@ -302,7 +330,6 @@ export default function DistributorPanel() {
               </Card>
             ))}
 
-            {/* Add day inline card */}
             <button
               onClick={addDay}
               className="flex items-center justify-center min-h-[120px] rounded-tremor-default border-2 border-dashed border-tremor-border dark:border-dark-tremor-border text-tremor-content-subtle dark:text-dark-tremor-content-subtle hover:border-tremor-brand dark:hover:border-dark-tremor-brand hover:text-tremor-brand dark:hover:text-dark-tremor-brand transition-colors text-sm"
@@ -312,7 +339,6 @@ export default function DistributorPanel() {
           </div>
         </section>
 
-        {/* Delivery parameters */}
         <section>
           <p className="text-sm font-medium text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis mb-3">
             Delivery parameters per building
@@ -352,8 +378,12 @@ export default function DistributorPanel() {
 
         <div className="flex justify-end pb-4">
           <div className="flex items-center gap-2">
+            {saving && <Text className="text-xs text-tremor-content-subtle">Saving...</Text>}
             {saved && <Text className="text-xs text-green-600">Saved ✓</Text>}
-            <Button onClick={handleSave}>Save all changes</Button>
+            {saveError && <Text className="text-xs text-red-500">{saveError}</Text>}
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving...' : 'Save all changes'}
+            </Button>
           </div>
         </div>
       </main>
