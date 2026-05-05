@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FocusEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Text, Badge, Button } from '@tremor/react'
 import { mockDistributorSelf } from '../data/mock'
@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext'
 type Tier = { threshold: number; price: number }
 
 type DayPrice = {
+  local_id: string
   day: number
   base_price: number
   availability_kg: number
@@ -24,12 +25,38 @@ const fieldCls = "w-full text-sm border border-tremor-border dark:border-dark-tr
 const labelCls = "text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle mb-1 block"
 const iconBtnCls = "text-xs px-1.5 py-0.5 rounded border transition-colors"
 
+const createLocalId = () =>
+  `day-${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+const getNextAvailableDay = (prices: DayPrice[]) => {
+  const usedDays = new Set(prices.map(p => p.day))
+  let day = 1
+
+  while (usedDays.has(day)) {
+    day += 1
+  }
+
+  return day
+}
+
+const selectZeroOnFocus = (event: FocusEvent<HTMLInputElement>) => {
+  if (event.currentTarget.value === '0') {
+    event.currentTarget.select()
+  }
+}
+
 export default function DistributorPanel() {
   const navigate = useNavigate()
   const { theme, toggle } = useTheme()
   const dist = mockDistributorSelf
 
-  const [prices, setPrices] = useState<DayPrice[]>(dist.daily_prices as DayPrice[])
+  const [prices, setPrices] = useState<DayPrice[]>(
+    () =>
+      dist.daily_prices.map((price, index) => ({
+        ...price,
+        local_id: `day-${price.day}-${index}`,
+      })) as DayPrice[],
+  )
   const [delivery, setDelivery] = useState<DeliveryParam[]>(dist.delivery_params)
   const [saved, setSaved] = useState(false)
 
@@ -43,39 +70,66 @@ export default function DistributorPanel() {
     setTimeout(() => setSaved(false), 2500)
   }
 
-  const updateDayField = (day: number, field: 'base_price' | 'availability_kg', value: string) => {
-    setPrices(prev => prev.map(p => p.day === day ? { ...p, [field]: parseFloat(value) || 0 } : p))
+  const updateDayField = (localId: string, field: 'base_price' | 'availability_kg', value: string) => {
+    setPrices(prev => prev.map(p => p.local_id === localId ? { ...p, [field]: parseFloat(value) || 0 } : p))
   }
 
-  const removeDay = (day: number) => {
-    setPrices(prev => prev.filter(p => p.day !== day))
+  const removeDay = (localId: string) => {
+    setPrices(prev => prev.filter(p => p.local_id !== localId))
   }
 
   const addDay = () => {
-    const maxDay = prices.reduce((m, p) => Math.max(m, p.day), 0)
-    setPrices(prev => [...prev, { day: maxDay + 1, base_price: 0, availability_kg: 0, tiers: [] }])
+    setPrices(prev => [
+      ...prev,
+      {
+        local_id: createLocalId(),
+        day: getNextAvailableDay(prev),
+        base_price: 0,
+        availability_kg: 0,
+        tiers: [],
+      },
+    ])
   }
 
-  const updateDayNumber = (oldDay: number, value: string) => {
-    const newDay = parseInt(value) || oldDay
-    setPrices(prev => prev.map(p => p.day === oldDay ? { ...p, day: newDay } : p))
+  const updateDayNumber = (localId: string, value: string) => {
+    const newDay = parseInt(value)
+
+    if (!newDay || newDay < 1) {
+      return
+    }
+
+    setPrices(prev => {
+      const dayAlreadyExists = prev.some(
+        p => p.local_id !== localId && p.day === newDay,
+      )
+
+      if (dayAlreadyExists) {
+        return prev
+      }
+
+      return prev.map(p =>
+        p.local_id === localId ? { ...p, day: newDay } : p,
+      )
+    })
   }
 
-  const addTier = (day: number) => {
+  const addTier = (localId: string) => {
     setPrices(prev => prev.map(p =>
-      p.day === day ? { ...p, tiers: [...p.tiers, { threshold: 0, price: 0 }] } : p
+      p.local_id === localId
+        ? { ...p, tiers: [...p.tiers, { threshold: 0, price: 0 }] }
+        : p,
     ))
   }
 
-  const removeTier = (day: number, idx: number) => {
+  const removeTier = (localId: string, idx: number) => {
     setPrices(prev => prev.map(p =>
-      p.day === day ? { ...p, tiers: p.tiers.filter((_, i) => i !== idx) } : p
+      p.local_id === localId ? { ...p, tiers: p.tiers.filter((_, i) => i !== idx) } : p
     ))
   }
 
-  const updateTier = (day: number, idx: number, field: keyof Tier, value: string) => {
+  const updateTier = (localId: string, idx: number, field: keyof Tier, value: string) => {
     setPrices(prev => prev.map(p =>
-      p.day === day
+      p.local_id === localId
         ? { ...p, tiers: p.tiers.map((t, i) => i === idx ? { ...t, [field]: parseFloat(value) || 0 } : t) }
         : p
     ))
@@ -148,7 +202,7 @@ export default function DistributorPanel() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {sortedPrices.map(p => (
-              <Card key={p.day} className="space-y-3">
+              <Card key={p.local_id} className="space-y-3">
                 {/* Day header */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
@@ -156,12 +210,12 @@ export default function DistributorPanel() {
                     <input
                       type="number" min="1"
                       value={p.day}
-                      onChange={e => updateDayNumber(p.day, e.target.value)}
+                      onChange={e => updateDayNumber(p.local_id, e.target.value)}
                       className="w-14 text-sm font-medium border border-tremor-border dark:border-dark-tremor-border rounded px-2 py-0.5 bg-tremor-background dark:bg-dark-tremor-background-subtle text-tremor-content-strong dark:text-dark-tremor-content-strong focus:outline-none focus:ring-2 focus:ring-tremor-brand"
                     />
                   </div>
                   <button
-                    onClick={() => removeDay(p.day)}
+                    onClick={() => removeDay(p.local_id)}
                     className={`${iconBtnCls} border-red-200 text-red-500 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950`}
                     title="Remove day"
                   >
@@ -176,7 +230,8 @@ export default function DistributorPanel() {
                     <input
                       type="number" step="0.1" min="0"
                       value={p.base_price}
-                      onChange={e => updateDayField(p.day, 'base_price', e.target.value)}
+                      onFocus={selectZeroOnFocus}
+                      onChange={e => updateDayField(p.local_id, 'base_price', e.target.value)}
                       className={fieldCls}
                     />
                   </div>
@@ -185,7 +240,8 @@ export default function DistributorPanel() {
                     <input
                       type="number" min="0"
                       value={p.availability_kg}
-                      onChange={e => updateDayField(p.day, 'availability_kg', e.target.value)}
+                      onFocus={selectZeroOnFocus}
+                      onChange={e => updateDayField(p.local_id, 'availability_kg', e.target.value)}
                       className={fieldCls}
                     />
                   </div>
@@ -198,7 +254,7 @@ export default function DistributorPanel() {
                       Discount tiers
                     </p>
                     <button
-                      onClick={() => addTier(p.day)}
+                      onClick={() => addTier(p.local_id)}
                       className={`${iconBtnCls} border-tremor-border dark:border-dark-tremor-border text-tremor-content dark:text-dark-tremor-content hover:bg-tremor-background-muted dark:hover:bg-dark-tremor-background-muted`}
                     >
                       + tier
@@ -218,7 +274,8 @@ export default function DistributorPanel() {
                         <input
                           type="number" min="0"
                           value={t.threshold}
-                          onChange={e => updateTier(p.day, idx, 'threshold', e.target.value)}
+                          onFocus={selectZeroOnFocus}
+                          onChange={e => updateTier(p.local_id, idx, 'threshold', e.target.value)}
                           className={fieldCls}
                         />
                       </div>
@@ -227,12 +284,13 @@ export default function DistributorPanel() {
                         <input
                           type="number" step="0.1" min="0"
                           value={t.price}
-                          onChange={e => updateTier(p.day, idx, 'price', e.target.value)}
+                          onFocus={selectZeroOnFocus}
+                          onChange={e => updateTier(p.local_id, idx, 'price', e.target.value)}
                           className={fieldCls}
                         />
                       </div>
                       <button
-                        onClick={() => removeTier(p.day, idx)}
+                        onClick={() => removeTier(p.local_id, idx)}
                         className={`${iconBtnCls} mb-0.5 border-red-200 text-red-400 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950 shrink-0`}
                         title="Remove tier"
                       >
@@ -271,6 +329,7 @@ export default function DistributorPanel() {
                     <input
                       type="number" min="0" step="1"
                       value={dp.lead_time_days}
+                      onFocus={selectZeroOnFocus}
                       onChange={e => updateDelivery(dp.building_id, 'lead_time_days', e.target.value)}
                       className={fieldCls}
                     />
@@ -280,6 +339,7 @@ export default function DistributorPanel() {
                     <input
                       type="number" min="0" step="1"
                       value={dp.fixed_cost_pln}
+                      onFocus={selectZeroOnFocus}
                       onChange={e => updateDelivery(dp.building_id, 'fixed_cost_pln', e.target.value)}
                       className={fieldCls}
                     />
