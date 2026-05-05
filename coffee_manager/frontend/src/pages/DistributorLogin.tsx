@@ -38,7 +38,7 @@ export default function DistributorLogin() {
                 API Key
               </label>
               <TextInput
-                placeholder="cof_..."
+                placeholder="Enter API key"
                 value={apiKey}
                 onChange={e => setApiKey(e.target.value)}
               />
@@ -46,12 +46,6 @@ export default function DistributorLogin() {
             {error && <Text className="text-red-500 text-sm">{error}</Text>}
             <Button type="submit" className="w-full">Sign in</Button>
           </form>
-          <p className="text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle text-center mt-4">
-            Demo key:{' '}
-            <code className="bg-tremor-background-muted dark:bg-dark-tremor-background-muted px-1 rounded text-xs">
-              cof_brzeskakawa_2024_x9k2
-            </code>
-          </p>
         </Card>
         <div className="text-center mt-4">
           <a
