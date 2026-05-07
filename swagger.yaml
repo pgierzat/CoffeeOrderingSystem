@@ -273,9 +273,14 @@ paths:
                   required: true
                   schema:
                       type: string
+                      format: UUID
             responses:
                 "204":
                     description: Key revoked
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "404":
+                    $ref: "#/components/responses/NotFound"
 
     /buildings:
         get:
@@ -413,6 +418,33 @@ paths:
                         application/json:
                             schema:
                                 $ref: "#/components/schemas/OptimizationResponse"
+    
+        /optimization/{result_id}:
+        get:
+            tags: [Optimization]
+            summary: Get optimization result details
+            operationId: getOptimizationResult
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: result_id
+                  in: path
+                  required: true
+                  description: Optimization result UUID
+                  schema:
+                      type: string
+                      format: uuid
+            responses:
+                "200":
+                    description: Optimization result details
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/OptimizationResponse"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "404":
+                    $ref: "#/components/responses/NotFound"
 
     /orders:
         get:
@@ -457,6 +489,73 @@ paths:
                         application/json:
                             schema:
                                 $ref: "#/components/schemas/OrderRecord"
+    
+        /orders/{order_id}:
+        get:
+            tags: [Orders]
+            summary: Get order details
+            operationId: getOrder
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: order_id
+                  in: path
+                  required: true
+                  description: Order UUID
+                  schema:
+                      type: string
+                      format: uuid
+            responses:
+                "200":
+                    description: Order details
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/OrderRecord"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "404":
+                    $ref: "#/components/responses/NotFound"
+    
+        /orders/{order_id}/status:
+        patch:
+            tags: [Orders]
+            summary: Update order status
+            operationId: updateOrderStatus
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: order_id
+                  in: path
+                  required: true
+                  description: Order UUID
+                  schema:
+                      type: string
+                      format: uuid
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [status]
+                            properties:
+                                status:
+                                    type: string
+                                    enum: [confirmed, pending, cancelled]
+                        example:
+                            status: cancelled
+            responses:
+                "200":
+                    description: Order status updated
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/OrderRecord"
+                "401":
+                    $ref: "#/components/responses/Unauthorized"
+                "404":
+                    $ref: "#/components/responses/NotFound"
 
     /inventory:
         get:
@@ -547,6 +646,7 @@ components:
             required: true
             schema:
                 type: string
+                format: UUID
             description: Distributor UUID
         BuildingId:
             name: building_id
@@ -554,6 +654,7 @@ components:
             required: true
             schema:
                 type: string
+                format: UUID
             description: Building UUID
 
     responses:
@@ -599,6 +700,7 @@ components:
                     description: Bearer token for use in Authorization header
                 user_id:
                     type: string
+                    format: UUID
                 role:
                     type: string
                     enum: [coordinator, admin]
@@ -669,7 +771,7 @@ components:
 
         DistributorCreateRequest:
             type: object
-            required: [name, contact_email, daily_prices, delivery_params]
+            required: [name, contact_email, contact_phone, daily_prices, delivery_params]
             properties:
                 name:
                     type: string
@@ -678,7 +780,6 @@ components:
                     format: email
                 contact_phone:
                     type: string
-                    nullable: true
                 daily_prices:
                     type: array
                     items:
@@ -718,6 +819,8 @@ components:
                   properties:
                       id:
                           type: string
+                      active:
+                          type: boolean
                       created_at:
                           type: string
                           format: date-time
@@ -777,7 +880,7 @@ components:
 
         ScenarioCreateRequest:
             type: object
-            required: [name, distributor_ids, building_ids, discount_tiers]
+            required: [name, distributor_ids, building_ids]
             properties:
                 name:
                     type: string
@@ -797,11 +900,6 @@ components:
                     items:
                         type: string
                     description: List of building IDs
-                discount_tiers:
-                    type: array
-                    items:
-                        $ref: "#/components/schemas/DiscountTier"
-                    description: Discount tiers
                 decay_rate:
                     type: number
                     format: float
@@ -821,16 +919,21 @@ components:
             properties:
                 distributor_id:
                     type: string
+                    format: uuid
                 building_id:
                     type: string
+                    format: uuid
                 day:
                     type: integer
+                    minimum: 1
                 threshold_level:
                     type: integer
+                    minimum: 0
                     description: "0 = no tier, >= 1 = discount tier number"
                 quantity_kg:
                     type: number
                     format: float
+                    minimum: 0
 
         InventoryLevel:
             type: object
@@ -843,13 +946,15 @@ components:
                     type: number
                     format: float
 
-        OptimizationResponse:
+                OptimizationResponse:
             type: object
             properties:
                 scenario_id:
                     type: string
+                    format: UUID
                 result_id:
                     type: string
+                    format: UUID
                 status:
                     type: string
                     enum: [Optimal, Infeasible, Unbounded, Not Solved]
@@ -897,6 +1002,7 @@ components:
                     type: number
                 confirmed_by:
                     type: string
+                    format: UUID
                 status:
                     type: string
                     enum: [confirmed, pending, cancelled]
@@ -909,6 +1015,7 @@ components:
             properties:
                 building_id:
                     type: string
+                    format: UUID
                 building_name:
                     type: string
                 current_inventory_kg:
@@ -942,6 +1049,7 @@ components:
                     type: string
                 distributor_id:
                     type: string
+                    format: UUID
                 active:
                     type: boolean
                 created_at:

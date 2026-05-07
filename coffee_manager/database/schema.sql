@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    username VARCHAR(100) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     role VARCHAR(30) NOT NULL DEFAULT 'coordinator'
         CHECK (role IN ('coordinator', 'admin'))
@@ -12,8 +12,11 @@ CREATE TABLE distributors (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username VARCHAR(100) NOT NULL UNIQUE,
     contact_email VARCHAR(100) NOT NULL UNIQUE,
-    contact_phone VARCHAR(10) NOT NULL UNIQUE,
-    active BOOLEAN NOT NULL DEFAULT true
+    contact_phone VARCHAR(20) NOT NULL UNIQUE,
+    active BOOLEAN NOT NULL DEFAULT true,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE distributor_daily_prices (
@@ -26,7 +29,7 @@ CREATE TABLE distributor_daily_prices (
     UNIQUE (distributor_id, day)
 );
 
-CREATE TABLE distributor_discount_tier (
+CREATE TABLE distributor_discount_tiers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     distributor_id UUID NOT NULL REFERENCES distributors(id) ON DELETE CASCADE,
     level INTEGER NOT NULL CHECK (level >= 1),
@@ -45,17 +48,22 @@ CREATE TABLE buildings (
     current_inventory_kg NUMERIC NOT NULL DEFAULT 0 CHECK (current_inventory_kg >= 0),
     
     CHECK (initial_inventory_kg <= max_capacity_kg),
-    CHECK (current_inventory_kg <= max_capacity_kg)
+    CHECK (current_inventory_kg <= max_capacity_kg),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE delivery_params (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    distributor_id UUID NOT NULL REFERENCES distributors(id) ON DELETE CASCADE UNIQUE,
-    buildQing_id UUID NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
-    lead_time_days INTEGER DEFAULT 1,
-    fixed_cost_pln NUMERIC(10, 2) DEFAULT 0.0,
-    correction_cost_per_kg NUMERIC(10, 2) DEFAULT 0.0,
-    max_correction_kg NUMERIC(10, 2) DEFAULT 0.0
+    distributor_id UUID NOT NULL REFERENCES distributors(id) ON DELETE CASCADE,
+    building_id UUID NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
+    lead_time_days INTEGER NOT NULL DEFAULT 1 CHECK (lead_time_days >= 0),
+    fixed_cost_pln NUMERIC(10, 2) NOT NULL DEFAULT 0.0 CHECK (fixed_cost_pln >= 0),
+    correction_cost_per_kg NUMERIC(10, 2) NOT NULL DEFAULT 0.0 CHECK (correction_cost_per_kg >= 0),
+    max_correction_kg NUMERIC(10, 2) NOT NULL DEFAULT 0.0 CHECK (max_correction_kg >= 0),
+
+    UNIQUE (distributor_id, building_id)
 );
 
 CREATE TABLE api_keys (
@@ -65,8 +73,10 @@ CREATE TABLE api_keys (
     key_hash TEXT NOT NULL UNIQUE,
     label VARCHAR(255) NOT NULL,
     active BOOLEAN NOT NULL DEFAULT true,
+    revoked_at TIMESTAMPTZ,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    revoked_at TIMESTAMPTZ
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE building_daily_demand (
@@ -86,7 +96,10 @@ CREATE TABLE optimization_scenarios (
         CHECK (planning_horizon_days BETWEEN 1 AND 30),
     decay_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.05
         CHECK (decay_rate >= 0 AND decay_rate <= 1),
-    historical_orders JSONB
+    historical_orders JSONB,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE optimization_scenario_distributors (
@@ -103,15 +116,6 @@ CREATE TABLE optimization_scenario_buildings (
     PRIMARY KEY (scenario_id, building_id)
 );
 
-CREATE TABLE optimization_scenario_discount_tiers (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    scenario_id UUID NOT NULL REFERENCES optimization_scenarios(id) ON DELETE CASCADE,
-    level INTEGER NOT NULL CHECK (level >= 1),
-    quantity_kg NUMERIC(12, 3) NOT NULL CHECK (quantity_kg >= 0),
-    unit_price NUMERIC(12, 2) NOT NULL CHECK (unit_price >= 0),
-
-    UNIQUE (scenario_id, level)
-);
 
 CREATE TABLE optimization_results (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -123,7 +127,10 @@ CREATE TABLE optimization_results (
     purchase_discount NUMERIC(14, 2),
     fixed_delivery NUMERIC(14, 2),
     total NUMERIC(14, 2),
-    solver_message TEXT
+    solver_message TEXT,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE optimization_order_items (
@@ -154,7 +161,9 @@ CREATE TABLE orders (
     confirmed_by UUID REFERENCES users(id) ON DELETE SET NULL,
     status VARCHAR(30) NOT NULL DEFAULT 'confirmed'
         CHECK (status IN ('confirmed', 'pending', 'cancelled')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE TABLE order_items (
