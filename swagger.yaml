@@ -103,8 +103,9 @@ paths:
                         schema:
                             $ref: "#/components/schemas/DistributorCreateRequest"
                         example:
-                            name: "Kaffa Premium Sp. z o.o."
+                            username: "Kaffa Premium Sp. z o.o."
                             contact_email: "orders@kaffa.pl"
+                            contact_phone: "+48 123 456 789"
                             daily_prices:
                                 - day: 1
                                   base_price: 12.0
@@ -418,8 +419,8 @@ paths:
                         application/json:
                             schema:
                                 $ref: "#/components/schemas/OptimizationResponse"
-    
-        /optimization/{result_id}:
+
+    /optimization/{result_id}:
         get:
             tags: [Optimization]
             summary: Get optimization result details
@@ -489,8 +490,8 @@ paths:
                         application/json:
                             schema:
                                 $ref: "#/components/schemas/OrderRecord"
-    
-        /orders/{order_id}:
+
+    /orders/{order_id}:
         get:
             tags: [Orders]
             summary: Get order details
@@ -516,8 +517,8 @@ paths:
                     $ref: "#/components/responses/Unauthorized"
                 "404":
                     $ref: "#/components/responses/NotFound"
-    
-        /orders/{order_id}/status:
+
+    /orders/{order_id}/status:
         patch:
             tags: [Orders]
             summary: Update order status
@@ -742,6 +743,7 @@ components:
                     type: array
                     items:
                         $ref: "#/components/schemas/DiscountTier"
+                    description: "Discount tiers applicable on this day"
 
         DeliveryParams:
             type: object
@@ -771,9 +773,9 @@ components:
 
         DistributorCreateRequest:
             type: object
-            required: [name, contact_email, contact_phone, daily_prices, delivery_params]
+            required: [username, contact_email, contact_phone, daily_prices, delivery_params]
             properties:
-                name:
+                username:
                     type: string
                 contact_email:
                     type: string
@@ -792,7 +794,7 @@ components:
         DistributorUpdateRequest:
             type: object
             properties:
-                name:
+                username:
                     type: string
                     nullable: true
                 contact_email:
@@ -871,6 +873,10 @@ components:
                   properties:
                       id:
                           type: string
+                      current_inventory_kg:
+                          type: number
+                          format: float
+                          description: "Current inventory level [kg]"
                       created_at:
                           type: string
                           format: date-time
@@ -946,7 +952,7 @@ components:
                     type: number
                     format: float
 
-                OptimizationResponse:
+        OptimizationResponse:
             type: object
             properties:
                 scenario_id:
@@ -963,6 +969,10 @@ components:
                     type: number
                     format: float
                     description: Total cost of optimal solution [PLN]
+                solver_message:
+                    type: string
+                    nullable: true
+                    description: Raw solver status message
                 orders:
                     type: array
                     items:
@@ -975,6 +985,7 @@ components:
                     description: Projected inventory levels
                 cost_breakdown:
                     type: object
+                    nullable: true
                     properties:
                         purchase_base:
                             type: number
@@ -1007,6 +1018,9 @@ components:
                     type: string
                     enum: [confirmed, pending, cancelled]
                 created_at:
+                    type: string
+                    format: date-time
+                updated_at:
                     type: string
                     format: date-time
 
@@ -1044,7 +1058,7 @@ components:
                     type: string
                 key:
                     type: string
-                    description: "API key (format: cof_...)"
+                    description: "API key (format: cof_...) — only present on creation"
                 label:
                     type: string
                 distributor_id:
@@ -1052,6 +1066,10 @@ components:
                     format: UUID
                 active:
                     type: boolean
+                revoked_at:
+                    type: string
+                    format: date-time
+                    nullable: true
                 created_at:
                     type: string
                     format: date-time
