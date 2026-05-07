@@ -1,9 +1,25 @@
-from amplpy import AMPL, Environment
-import pandas as pd
+from amplpy import AMPL
+from typing import Any
 
 
-def solve_coffee_optimization(api_data: dict) -> dict:
+_SOLVE_STATUS_MAP = {
+    "solved": "Optimal",
+    "infeasible": "Infeasible",
+    "unbounded": "Unbounded",
+}
 
+
+def solve_coffee_optimization(api_data: dict) -> dict[str, Any]:
+    """
+    Returns:
+        {
+            "status": "Optimal" | "Infeasible" | "Unbounded" | "Not Solved",
+            "total_cost": float | None,
+            "orders": [{"distributor_id", "building_id", "day", "threshold_level", "quantity_kg"}, ...],
+            "inventory_levels": [{"building_id", "day", "level_kg"}, ...],
+            "cost_breakdown": {"purchase_base", "purchase_discount", "fixed_delivery", "total"} | None,
+        }
+    """
     ampl = AMPL()
 
     ampl.eval(
@@ -23,13 +39,12 @@ def solve_coffee_optimization(api_data: dict) -> dict:
         param I0 {B} >= 0;                   # I_{b,0} - początkowy stan magazynu
         param alpha >= 0, <= 1;              # \alpha - procent dziennej utraty
         param S_avail {D, T} >= 0;           # S_{d,t} - maksymalna dostępność dystrybutora
-        param S_max = max {d in D, t in T} S_avail[d,t]; # S^{max}
         param LT {D, B} >= 0 integer;        # X_{d,b} - czas dostawy
 
         # Zamówienia historyczne
         param H_arrival {D, B, T} >= 0 default 0;
 
-        # ZMIENNE DECYZYJNE (Zgodnie z sekcją 2.3)
+        # ZMIENNE DECYZYJNE
         var x0 {D, B, T} >= 0;               # x_{d,b,t,0} - ilość pod progiem 1
         var x {D, B, T, L} >= 0;             # x_{d,b,t,l} - ilość nad progiem l
         var I {B, 0..card(T)} >= 0;          # I_{b,t} - stan magazynu (0 to stan początkowy)
@@ -48,7 +63,7 @@ def solve_coffee_optimization(api_data: dict) -> dict:
         s.t. Init_Inv {b in B}:
             I[b,0] = I0[b];
 
-        # Równanie 2: Bilans zapasów (z uwzględnieniem czasu dostawy LT)
+        # Bilans zapasów (z uwzględnieniem czasu dostawy LT)
         s.t. Inv_Balance {b in B, t in T}:
             I[b,ord(t)] = (1 - alpha) * I[b,ord(t)-1]
                 + sum {d in D, tau in T: ord(tau) + LT[d,b] == ord(t)} x0[d,b,tau]
@@ -56,19 +71,19 @@ def solve_coffee_optimization(api_data: dict) -> dict:
                 + sum {d in D} H_arrival[d,b,t]
                 - Demand[b,t];
 
-        # Równanie 3: Pojemność magazynu
+        # Pojemność magazynu
         s.t. Max_Inv_Limit {b in B, t in T}:
             I[b,ord(t)] <= V_max[b];
 
-        # Równanie 4: Powiązanie zamówienia ze zmienną binarną
+        # Powiązanie zamówień (x0 i x) ze zmienną binarną y_skl — gwarantuje naliczenie kosztu stałego
         s.t. Link_Order_Binary {d in D, b in B, t in T}:
-            x0[d,b,t] <= S_avail[d,t] * y_skl[d,b,t];
+            x0[d,b,t] + sum {l in L} x[d,b,t,l] <= S_avail[d,t] * y_skl[d,b,t];
 
-        # Równanie 5: Ograniczenie dostępności u dystrybutora
+        # Ograniczenie dostępności u dystrybutora
         s.t. Max_Availability {d in D, t in T}:
             sum {b in B} (x0[d,b,t] + sum {l in L} x[d,b,t,l]) <= S_avail[d,t];
 
-        # Równania 6-10: Ograniczenia progowe rabatów
+        # Ograniczenia progowe rabatów
         s.t. Threshold_0_Max {d in D, b in B, t in T}:
             x0[d,b,t] <= Q[first(L)];
 
@@ -78,8 +93,9 @@ def solve_coffee_optimization(api_data: dict) -> dict:
         s.t. Threshold_L_Max_Normal {d in D, b in B, t in T, l in L: l <> last(L)}:
             x[d,b,t,l] <= (Q[next(l,L)] - Q[l]) * y_rab[d,b,t,l];
 
+        # S_avail[d,t] jest ciasnym ograniczeniem dla ostatniego progu (zamiast globalnego S_max)
         s.t. Threshold_L_Max_Last {d in D, b in B, t in T, l in L: l == last(L)}:
-            x[d,b,t,l] <= S_max * y_rab[d,b,t,l];
+            x[d,b,t,l] <= S_avail[d,t] * y_rab[d,b,t,l];
 
         s.t. Threshold_L_Min_Normal {d in D, b in B, t in T, l in L: l <> last(L)}:
             x[d,b,t,l] >= (Q[next(l,L)] - Q[l]) * y_rab[d,b,t,next(l,L)];
@@ -95,7 +111,6 @@ def solve_coffee_optimization(api_data: dict) -> dict:
     ampl.get_parameter("V_max").set_values(api_data["V_max"])
     ampl.get_parameter("Q").set_values(api_data["Q"])
     ampl.get_parameter("I0").set_values(api_data["I0"])
-
     ampl.get_parameter("P0").set_values(api_data["P0"])
     ampl.get_parameter("P").set_values(api_data["P"])
     ampl.get_parameter("C_fix").set_values(api_data["C_fix"])
@@ -109,21 +124,78 @@ def solve_coffee_optimization(api_data: dict) -> dict:
     ampl.set_option("solver", "cbc")
     ampl.solve()
 
-    results = {t: {d: 0.0 for d in api_data["D"]} for t in api_data["T"]}
+    status = _SOLVE_STATUS_MAP.get(ampl.get_value("solve_result"), "Not Solved")
 
-    if ampl.get_value("solve_result") == "solved":
-        x0_vals = ampl.get_variable("x0").get_values().to_dict()
-        x_vals = ampl.get_variable("x").get_values().to_dict()
+    if status != "Optimal":
+        return {
+            "status": status,
+            "total_cost": None,
+            "orders": [],
+            "inventory_levels": [],
+            "cost_breakdown": None,
+        }
 
-        for (d, b, t), val in x0_vals.items():
-            if val > 0.001:
-                results[t][d] += val
+    x0_vals = ampl.get_variable("x0").get_values().to_dict()
+    x_vals = ampl.get_variable("x").get_values().to_dict()
+    I_vals = ampl.get_variable("I").get_values().to_dict()
+    y_skl_vals = ampl.get_variable("y_skl").get_values().to_dict()
 
-        for (d, b, t, l), val in x_vals.items():
-            if val > 0.001:
-                results[t][d] += val
+    orders: list[dict] = []
+    purchase_base = 0.0
+    purchase_discount = 0.0
+    fixed_delivery = 0.0
 
-    return dict(results)
+    for (d, b, t), val in x0_vals.items():
+        if val > 1e-6:
+            orders.append({
+                "distributor_id": d,
+                "building_id": b,
+                "day": t,
+                "threshold_level": 0,
+                "quantity_kg": val,
+            })
+            purchase_base += api_data["P0"][(d, t)] * val
+
+    for (d, b, t, lvl), val in x_vals.items():
+        if val > 1e-6:
+            orders.append({
+                "distributor_id": d,
+                "building_id": b,
+                "day": t,
+                "threshold_level": lvl,
+                "quantity_kg": val,
+            })
+            purchase_discount += api_data["P"][(d, t, lvl)] * val
+
+    for (d, b, t), val in y_skl_vals.items():
+        if val > 0.5:
+            fixed_delivery += api_data["C_fix"][(d, b)]
+
+    # I is indexed 0..card(T); index 0 is the initial state, 1..card(T) are planning periods
+    T_list = api_data["T"]
+    inventory_levels: list[dict] = []
+    for (b, t_idx), val in I_vals.items():
+        if t_idx > 0:
+            inventory_levels.append({
+                "building_id": b,
+                "day": T_list[int(t_idx) - 1],
+                "level_kg": val,
+            })
+
+    total_cost = purchase_base + purchase_discount + fixed_delivery
+
+    return {
+        "status": status,
+        "total_cost": total_cost,
+        "orders": orders,
+        "inventory_levels": inventory_levels,
+        "cost_breakdown": {
+            "purchase_base": purchase_base,
+            "purchase_discount": purchase_discount,
+            "fixed_delivery": fixed_delivery,
+            "total": total_cost,
+        },
+    }
 
 
 mock_api_data = {
@@ -141,18 +213,18 @@ mock_api_data = {
         for t in [1, 2, 3, 4, 5, 6, 7]
     },
     "P": {
-        (d, t, l): (
+        (d, t, lvl): (
             10.0
-            if (d == "D1" and l == 1)
+            if (d == "D1" and lvl == 1)
             else (
                 8.0
-                if (d == "D1" and l == 2)
-                else 9.5 if (d == "D2" and l == 1) else 7.5
+                if (d == "D1" and lvl == 2)
+                else 9.5 if (d == "D2" and lvl == 1) else 7.5
             )
         )
         for d in ["D1", "D2"]
         for t in [1, 2, 3, 4, 5, 6, 7]
-        for l in [1, 2]
+        for lvl in [1, 2]
     },
     "C_fix": {("D1", "B1"): 50, ("D1", "B2"): 50, ("D2", "B1"): 60, ("D2", "B2"): 60},
     "Demand": {
@@ -166,5 +238,6 @@ mock_api_data = {
 }
 
 if __name__ == "__main__":
+    import json
     result = solve_coffee_optimization(mock_api_data)
-    print(result)
+    print(json.dumps(result, indent=2, default=str))
