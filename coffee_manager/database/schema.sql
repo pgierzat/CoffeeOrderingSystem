@@ -175,3 +175,47 @@ CREATE TABLE order_items (
     threshold_level INTEGER NOT NULL DEFAULT 0 CHECK (threshold_level >= 0),
     quantity_kg NUMERIC(12, 3) NOT NULL CHECK (quantity_kg >= 0)
 );
+
+
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_users_updated_at
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_distributors_updated_at
+BEFORE UPDATE ON distributors
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_buildings_updated_at
+BEFORE UPDATE ON buildings
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_api_keys_updated_at
+BEFORE UPDATE ON api_keys
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_optimization_scenarios_updated_at
+BEFORE UPDATE ON optimization_scenarios
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_optimization_results_updated_at
+BEFORE UPDATE ON optimization_results
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+CREATE TRIGGER trg_orders_updated_at
+BEFORE UPDATE ON orders
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
