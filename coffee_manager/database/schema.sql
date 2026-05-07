@@ -31,12 +31,14 @@ CREATE TABLE distributor_daily_prices (
 
 CREATE TABLE distributor_discount_tiers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    distributor_id UUID NOT NULL REFERENCES distributors(id) ON DELETE CASCADE,
+    distributor_id UUID NOT NULL,
+    day INTEGER NOT NULL CHECK (day >= 1),
     level INTEGER NOT NULL CHECK (level >= 1),
-    quantity_kg NUMERIC(10,2)NOT NULL CHECK (quantity_kg >= 0),
-    unit_price NUMERIC(10,2)NOT NULL CHECK (unit_price >= 0),
+    quantity_kg NUMERIC(10,2) NOT NULL CHECK (quantity_kg >= 0),
+    unit_price NUMERIC(10,2) NOT NULL CHECK (unit_price >= 0),
 
-    UNIQUE (distributor_id, level)
+    UNIQUE (distributor_id, day, level),
+    FOREIGN KEY (distributor_id, day) REFERENCES distributor_daily_prices(distributor_id, day) ON DELETE CASCADE
 );
 
 CREATE TABLE buildings (
