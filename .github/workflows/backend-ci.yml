@@ -44,6 +44,10 @@ jobs:
       run: |
         poetry run ruff format --check .
 
+    - name: Build Docker Images
+      working-directory: .
+      run: make build
+
 
 #    - name: Run tests
 #     run: poetry run pytest
