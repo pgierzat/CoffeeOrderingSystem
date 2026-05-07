@@ -1,5 +1,4 @@
-from amplpy import AMPL, Environment
-import pandas as pd
+from amplpy import AMPL
 
 
 def solve_coffee_optimization(api_data: dict) -> dict:
@@ -119,7 +118,7 @@ def solve_coffee_optimization(api_data: dict) -> dict:
             if val > 0.001:
                 results[t][d] += val
 
-        for (d, b, t, l), val in x_vals.items():
+        for (d, b, t, lvl), val in x_vals.items():
             if val > 0.001:
                 results[t][d] += val
 
@@ -141,18 +140,20 @@ mock_api_data = {
         for t in [1, 2, 3, 4, 5, 6, 7]
     },
     "P": {
-        (d, t, l): (
+        (d, t, lvl): (
             10.0
-            if (d == "D1" and l == 1)
+            if (d == "D1" and lvl == 1)
             else (
                 8.0
-                if (d == "D1" and l == 2)
-                else 9.5 if (d == "D2" and l == 1) else 7.5
+                if (d == "D1" and lvl == 2)
+                else 9.5
+                if (d == "D2" and lvl == 1)
+                else 7.5
             )
         )
         for d in ["D1", "D2"]
         for t in [1, 2, 3, 4, 5, 6, 7]
-        for l in [1, 2]
+        for lvl in [1, 2]
     },
     "C_fix": {("D1", "B1"): 50, ("D1", "B2"): 50, ("D2", "B1"): 60, ("D2", "B2"): 60},
     "Demand": {
