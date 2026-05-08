@@ -35,16 +35,24 @@ class Distributor(Base):
     contact_email = Column(String(100), nullable=False, unique=True)
     contact_phone = Column(String(20), nullable=False, unique=True)
     active = Column(Boolean, nullable=False, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     daily_prices = relationship(
-        "DistributorDailyPrice", back_populates="distributor", cascade="all, delete-orphan"
+        "DistributorDailyPrice",
+        back_populates="distributor",
+        cascade="all, delete-orphan",
     )
     delivery_params = relationship(
         "DeliveryParam", back_populates="distributor", cascade="all, delete-orphan"
     )
-    api_keys = relationship("ApiKey", back_populates="distributor", cascade="all, delete-orphan")
+    api_keys = relationship(
+        "ApiKey", back_populates="distributor", cascade="all, delete-orphan"
+    )
 
 
 class DistributorDailyPrice(Base):
@@ -52,7 +60,9 @@ class DistributorDailyPrice(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     distributor_id = Column(
-        UUID(as_uuid=True), ForeignKey("distributors.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("distributors.id", ondelete="CASCADE"),
+        nullable=False,
     )
     day = Column(Integer, nullable=False)
     base_price = Column(Numeric(10, 2), nullable=False)
@@ -99,8 +109,12 @@ class Building(Base):
     max_capacity_kg = Column(Numeric(10, 2), nullable=False)
     initial_inventory_kg = Column(Numeric(10, 2), nullable=False, default=0)
     current_inventory_kg = Column(Numeric, nullable=False, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     daily_demand = relationship(
         "BuildingDailyDemand", back_populates="building", cascade="all, delete-orphan"
@@ -115,10 +129,14 @@ class DeliveryParam(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     distributor_id = Column(
-        UUID(as_uuid=True), ForeignKey("distributors.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("distributors.id", ondelete="CASCADE"),
+        nullable=False,
     )
     building_id = Column(
-        UUID(as_uuid=True), ForeignKey("buildings.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("buildings.id", ondelete="CASCADE"),
+        nullable=False,
     )
     lead_time_days = Column(Integer, nullable=False, default=1)
     fixed_cost_pln = Column(Numeric(10, 2), nullable=False, default=0.0)
@@ -136,15 +154,21 @@ class ApiKey(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     distributor_id = Column(
-        UUID(as_uuid=True), ForeignKey("distributors.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("distributors.id", ondelete="CASCADE"),
+        nullable=False,
     )
     key_prefix = Column(String(20), nullable=False)
     key_hash = Column(Text, nullable=False, unique=True)
     label = Column(String(255), nullable=False)
     active = Column(Boolean, nullable=False, default=True)
     revoked_at = Column(DateTime(timezone=True))
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     distributor = relationship("Distributor", back_populates="api_keys")
 
@@ -154,7 +178,9 @@ class BuildingDailyDemand(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     building_id = Column(
-        UUID(as_uuid=True), ForeignKey("buildings.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("buildings.id", ondelete="CASCADE"),
+        nullable=False,
     )
     day = Column(Integer, nullable=False)
     demand_kg = Column(Numeric(12, 3), nullable=False)
@@ -172,8 +198,12 @@ class OptimizationScenario(Base):
     planning_horizon_days = Column(Integer, nullable=False, default=7)
     decay_rate = Column(Numeric(5, 4), nullable=False, default=0.05)
     historical_orders = Column(JSONB)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     distributors = relationship(
         "Distributor",
@@ -234,15 +264,21 @@ class OptimizationResult(Base):
     fixed_delivery = Column(Numeric(14, 2))
     total = Column(Numeric(14, 2))
     solver_message = Column(Text)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     scenario = relationship("OptimizationScenario", back_populates="results")
     order_items = relationship(
         "OptimizationOrderItem", back_populates="result", cascade="all, delete-orphan"
     )
     inventory_levels = relationship(
-        "OptimizationInventoryLevel", back_populates="result", cascade="all, delete-orphan"
+        "OptimizationInventoryLevel",
+        back_populates="result",
+        cascade="all, delete-orphan",
     )
 
 
@@ -256,10 +292,14 @@ class OptimizationOrderItem(Base):
         nullable=False,
     )
     distributor_id = Column(
-        UUID(as_uuid=True), ForeignKey("distributors.id", ondelete="RESTRICT"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("distributors.id", ondelete="RESTRICT"),
+        nullable=False,
     )
     building_id = Column(
-        UUID(as_uuid=True), ForeignKey("buildings.id", ondelete="RESTRICT"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("buildings.id", ondelete="RESTRICT"),
+        nullable=False,
     )
     day = Column(Integer, nullable=False)
     threshold_level = Column(Integer, nullable=False, default=0)
@@ -278,7 +318,9 @@ class OptimizationInventoryLevel(Base):
         nullable=False,
     )
     building_id = Column(
-        UUID(as_uuid=True), ForeignKey("buildings.id", ondelete="RESTRICT"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("buildings.id", ondelete="RESTRICT"),
+        nullable=False,
     )
     day = Column(Integer, nullable=False)
     level_kg = Column(Numeric(12, 3), nullable=False)
@@ -303,12 +345,20 @@ class Order(Base):
         nullable=False,
     )
     total_cost_pln = Column(Numeric(14, 2))
-    confirmed_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
+    confirmed_by = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
     status = Column(String(30), nullable=False, default="confirmed")
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
-    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    items = relationship(
+        "OrderItem", back_populates="order", cascade="all, delete-orphan"
+    )
 
 
 class OrderItem(Base):
@@ -319,10 +369,14 @@ class OrderItem(Base):
         UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False
     )
     distributor_id = Column(
-        UUID(as_uuid=True), ForeignKey("distributors.id", ondelete="RESTRICT"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("distributors.id", ondelete="RESTRICT"),
+        nullable=False,
     )
     building_id = Column(
-        UUID(as_uuid=True), ForeignKey("buildings.id", ondelete="RESTRICT"), nullable=False
+        UUID(as_uuid=True),
+        ForeignKey("buildings.id", ondelete="RESTRICT"),
+        nullable=False,
     )
     day = Column(Integer, nullable=False)
     threshold_level = Column(Integer, nullable=False, default=0)
