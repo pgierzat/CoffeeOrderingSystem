@@ -36,9 +36,13 @@ def create_access_token(user_id: str, role: str) -> str:
 
 def decode_token(token: str) -> dict:
     try:
-        return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        return jwt.decode(
+            token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
+        )
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
 
 
 def get_current_user(
@@ -48,7 +52,9 @@ def get_current_user(
     payload = decode_token(credentials.credentials)
     user = db.get(User, payload["sub"])
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
     return user
 
 
@@ -64,12 +70,18 @@ def get_distributor_by_api_key(
     db: Session = Depends(get_db),
 ) -> ApiKey:
     if not x_api_key:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="API key required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="API key required"
+        )
     prefix = x_api_key[:16]
-    candidates = db.query(ApiKey).filter(
-        ApiKey.key_prefix == prefix, ApiKey.active.is_(True)
-    ).all()
+    candidates = (
+        db.query(ApiKey)
+        .filter(ApiKey.key_prefix == prefix, ApiKey.active.is_(True))
+        .all()
+    )
     for key in candidates:
         if verify_password(x_api_key, key.key_hash):
             return key
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key"
+    )

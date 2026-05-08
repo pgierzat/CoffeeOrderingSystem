@@ -13,7 +13,9 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 def login(body: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.name == body.username).first()
     if not user or not verify_password(body.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+        )
     return LoginResponse(
         token=create_access_token(str(user.id), user.role),
         user_id=user.id,
@@ -21,10 +23,14 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED
+)
 def register(body: LoginRequest, db: Session = Depends(get_db)):
     if db.query(User).filter(User.name == body.username).first():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already taken")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Username already taken"
+        )
     user = User(name=body.username, password_hash=hash_password(body.password))
     db.add(user)
     db.commit()
