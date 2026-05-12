@@ -51,7 +51,9 @@ def full_mock_data():
             else (
                 8.0
                 if (d == "D1" and lvl == 2)
-                else 9.5 if (d == "D2" and lvl == 1) else 7.5
+                else 9.5
+                if (d == "D2" and lvl == 1)
+                else 7.5
             )
         )
         for d in distributors
