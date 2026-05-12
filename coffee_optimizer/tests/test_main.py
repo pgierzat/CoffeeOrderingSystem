@@ -4,10 +4,10 @@ from unittest.mock import MagicMock, patch
 
 from coffee_optimizer.main import solve_coffee_optimization, _SOLVE_STATUS_MAP
 
-
 # ---------------------------------------------------------------------------
 # Shared fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def base_data():
@@ -23,8 +23,10 @@ def base_data():
         "I0": {"B1": 0.0},
         "P0": {("D1", 1): 12.0, ("D1", 2): 12.0},
         "P": {
-            ("D1", 1, 1): 10.0, ("D1", 1, 2): 8.0,
-            ("D1", 2, 1): 10.0, ("D1", 2, 2): 8.0,
+            ("D1", 1, 1): 10.0,
+            ("D1", 1, 2): 8.0,
+            ("D1", 2, 1): 10.0,
+            ("D1", 2, 2): 8.0,
         },
         "C_fix": {("D1", "B1"): 50},
         "Demand": {("B1", 1): 10.0, ("B1", 2): 10.0},
@@ -43,12 +45,18 @@ def full_mock_data():
 
     P0 = {(d, t): (12.0 if d == "D1" else 11.0) for d in distributors for t in days}
     P = {
-        (d, t, l): (
-            10.0 if (d == "D1" and l == 1) else
-            8.0 if (d == "D1" and l == 2) else
-            9.5 if (d == "D2" and l == 1) else 7.5
+        (d, t, lvl): (
+            10.0
+            if (d == "D1" and lvl == 1)
+            else (
+                8.0
+                if (d == "D1" and lvl == 2)
+                else 9.5 if (d == "D2" and lvl == 1) else 7.5
+            )
         )
-        for d in distributors for t in days for l in levels
+        for d in distributors
+        for t in days
+        for lvl in levels
     }
 
     return {
@@ -62,8 +70,15 @@ def full_mock_data():
         "I0": {"B1": 19.0, "B2": 32.0},
         "P0": P0,
         "P": P,
-        "C_fix": {("D1", "B1"): 50, ("D1", "B2"): 50, ("D2", "B1"): 60, ("D2", "B2"): 60},
-        "Demand": {(b, t): (15.0 if b == "B1" else 12.0) for b in buildings for t in days},
+        "C_fix": {
+            ("D1", "B1"): 50,
+            ("D1", "B2"): 50,
+            ("D2", "B1"): 60,
+            ("D2", "B2"): 60,
+        },
+        "Demand": {
+            (b, t): (15.0 if b == "B1" else 12.0) for b in buildings for t in days
+        },
         "S_avail": {(d, t): 100 for d in distributors for t in days},
         "LT": {("D1", "B1"): 1, ("D2", "B1"): 2, ("D1", "B2"): 1, ("D2", "B2"): 2},
         "H_arrival": {("D1", "B1", 1): 25.0},
@@ -73,6 +88,7 @@ def full_mock_data():
 # ---------------------------------------------------------------------------
 # _SOLVE_STATUS_MAP unit tests
 # ---------------------------------------------------------------------------
+
 
 class TestSolveStatusMap:
     def test_known_statuses_present(self):
@@ -95,6 +111,7 @@ class TestSolveStatusMap:
 # Integration tests – actual solver runs
 # ---------------------------------------------------------------------------
 
+
 class TestSolveOptimal:
     def test_returns_optimal_status(self, base_data):
         result = solve_coffee_optimization(base_data)
@@ -102,7 +119,13 @@ class TestSolveOptimal:
 
     def test_result_keys_present(self, base_data):
         result = solve_coffee_optimization(base_data)
-        assert set(result.keys()) == {"status", "total_cost", "orders", "inventory_levels", "cost_breakdown"}
+        assert set(result.keys()) == {
+            "status",
+            "total_cost",
+            "orders",
+            "inventory_levels",
+            "cost_breakdown",
+        }
 
     def test_total_cost_is_positive(self, base_data):
         result = solve_coffee_optimization(base_data)
@@ -221,6 +244,7 @@ class TestSolveInventoryConstraint:
 # Non-optimal scenarios
 # ---------------------------------------------------------------------------
 
+
 class TestSolveNonOptimal:
     def test_infeasible_returns_correct_structure(self, base_data):
         """Make it infeasible: demand exceeds all possible supply and inventory."""
@@ -242,14 +266,23 @@ class TestSolveNonOptimal:
         infeasible["S_avail"] = {("D1", 1): 1, ("D1", 2): 1}
         infeasible["V_max"] = {"B1": 10}
         result = solve_coffee_optimization(infeasible)
-        assert set(result.keys()) == {"status", "total_cost", "orders", "inventory_levels", "cost_breakdown"}
+        assert set(result.keys()) == {
+            "status",
+            "total_cost",
+            "orders",
+            "inventory_levels",
+            "cost_breakdown",
+        }
 
 
 # ---------------------------------------------------------------------------
 # Mocked AMPL – tests for result-parsing logic in isolation
 # ---------------------------------------------------------------------------
 
-def _make_ampl_mock(solve_result: str, x0_vals: dict, x_vals: dict, I_vals: dict, y_skl_vals: dict):
+
+def _make_ampl_mock(
+    solve_result: str, x0_vals: dict, x_vals: dict, I_vals: dict, y_skl_vals: dict
+):
     """Return a configured AMPL mock."""
     ampl = MagicMock()
     ampl.get_value.return_value = solve_result
@@ -284,8 +317,10 @@ class TestResultParsing:
             "I0": {"B1": 0.0},
             "P0": {("D1", 1): 12.0, ("D1", 2): 12.0},
             "P": {
-                ("D1", 1, 1): 10.0, ("D1", 1, 2): 8.0,
-                ("D1", 2, 1): 10.0, ("D1", 2, 2): 8.0,
+                ("D1", 1, 1): 10.0,
+                ("D1", 1, 2): 8.0,
+                ("D1", 2, 1): 10.0,
+                ("D1", 2, 2): 8.0,
             },
             "C_fix": {("D1", "B1"): 50},
             "Demand": {("B1", 1): 10.0, ("B1", 2): 10.0},
@@ -369,7 +404,10 @@ class TestResultParsing:
     def test_zero_quantity_orders_excluded(self, MockAMPL):
         mock_ampl = _make_ampl_mock(
             solve_result="solved",
-            x0_vals={("D1", "B1", 1): 0.0, ("D1", "B1", 2): 1e-9},  # both below threshold
+            x0_vals={
+                ("D1", "B1", 1): 0.0,
+                ("D1", "B1", 2): 1e-9,
+            },  # both below threshold
             x_vals={},
             I_vals={("B1", 0): 0.0, ("B1", 1): 0.0, ("B1", 2): 0.0},
             y_skl_vals={("D1", "B1", 1): 0.0, ("D1", "B1", 2): 0.0},
