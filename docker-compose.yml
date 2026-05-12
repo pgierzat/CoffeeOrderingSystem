@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15-alpine
@@ -8,13 +6,47 @@ services:
     env_file:
       - .env
     environment:
-      POSTGRES_USER:
-      POSTGRES_PASSWORD:
-      POSTGRES_DB:
+      POSTGRES_USER: coffee_user
+      POSTGRES_PASSWORD: 12345
+      POSTGRES_DB: coffee_db
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./coffee_manager
+      dockerfile: Dockerfile
+    container_name: coffee_manager_api
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./coffee_manager/src:/app/src
+      - ./coffee_manager/pyproject.toml:/app/pyproject.toml
+      - ./coffee_manager/poetry.lock:/app/poetry.lock
+
+  frontend:
+    build:
+      context: ./coffee_manager/frontend
+      dockerfile: Dockerfile
+    container_name: coffee_manager_frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./coffee_manager/frontend:/app
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
 
 volumes:
   postgres_data:
