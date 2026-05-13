@@ -4,7 +4,6 @@ import uuid
 from unittest.mock import patch
 
 import httpx
-import pytest
 
 from coffee_manager.routers import optimization as optimization_module
 
