@@ -44,9 +44,9 @@ def _to_response(result: OptimizationResult) -> OptimizationResponse:
         scenario_id=result.scenario_id,
         result_id=result.id,
         status=result.status,
-        total_cost_pln=float(result.total_cost_pln)
-        if result.total_cost_pln is not None
-        else None,
+        total_cost_pln=(
+            float(result.total_cost_pln) if result.total_cost_pln is not None else None
+        ),
         solver_message=result.solver_message,
         orders=[
             OrderItemSchema(
@@ -191,15 +191,23 @@ def run_optimization(
     }
 
     if body.historical_orders:
-        optimizer_payload["historical_arrivals"] = [
-            {
-                "distributor_id": k.split(":")[0],
-                "building_id": k.split(":")[1],
-                "day": 1,
-                "quantity_kg": v,
-            }
-            for k, v in body.historical_orders.items()
-        ]
+        arrivals = []
+        for k, v in body.historical_orders.items():
+            parts = k.split(":")
+            if len(parts) != 2:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"historical_orders key must be 'distributor_id:building_id', got {k!r}",
+                )
+            arrivals.append(
+                {
+                    "distributor_id": parts[0],
+                    "building_id": parts[1],
+                    "day": 1,
+                    "quantity_kg": v,
+                }
+            )
+        optimizer_payload["historical_arrivals"] = arrivals
 
     try:
         response = httpx.post(

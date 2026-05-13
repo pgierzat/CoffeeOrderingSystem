@@ -12,7 +12,7 @@ RUN python -m pip install --no-cache-dir "poetry>=2.0.0,<3.0.0" \
     && poetry config virtualenvs.create false \
     && poetry install --no-interaction --no-ansi --no-root --without dev
 
-RUN python -c "from amplpy import modules; modules.install(['cbc'])"
+RUN python -c "from amplpy import modules; modules.install(['ampl', 'cbc'])"
 
 COPY src ./src
 
