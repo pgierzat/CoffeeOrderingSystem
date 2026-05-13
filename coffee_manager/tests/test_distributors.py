@@ -122,13 +122,21 @@ def test_delete_distributor(client, auth_headers):
     created = client.post(
         "/distributors", json=_distributor_payload(b["id"]), headers=headers
     ).json()
-    assert client.delete(f"/distributors/{created['id']}", headers=headers).status_code == 204
-    assert client.get(f"/distributors/{created['id']}", headers=headers).status_code == 404
+    assert (
+        client.delete(f"/distributors/{created['id']}", headers=headers).status_code
+        == 204
+    )
+    assert (
+        client.get(f"/distributors/{created['id']}", headers=headers).status_code == 404
+    )
 
 
 def test_delete_distributor_404(client, auth_headers):
     headers, _ = auth_headers
-    assert client.delete(f"/distributors/{uuid.uuid4()}", headers=headers).status_code == 404
+    assert (
+        client.delete(f"/distributors/{uuid.uuid4()}", headers=headers).status_code
+        == 404
+    )
 
 
 def test_self_prices_requires_api_key(client):

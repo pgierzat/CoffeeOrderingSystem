@@ -9,7 +9,9 @@ from coffee_manager.models import (
 )
 
 
-def _seed_result(db, *, with_items: bool = True) -> tuple[OptimizationResult, Building, Distributor]:
+def _seed_result(
+    db, *, with_items: bool = True
+) -> tuple[OptimizationResult, Building, Distributor]:
     scenario = OptimizationScenario(name="s1", planning_horizon_days=3, decay_rate=0.05)
     db.add(scenario)
     db.flush()
@@ -20,10 +22,10 @@ def _seed_result(db, *, with_items: bool = True) -> tuple[OptimizationResult, Bu
     )
     db.add(result)
     db.flush()
-    building = Building(name="HQ", max_capacity_kg=500, initial_inventory_kg=0, current_inventory_kg=0)
-    distributor = Distributor(
-        username="Acme", contact_email="a@x", contact_phone="+1"
+    building = Building(
+        name="HQ", max_capacity_kg=500, initial_inventory_kg=0, current_inventory_kg=0
     )
+    distributor = Distributor(username="Acme", contact_email="a@x", contact_phone="+1")
     db.add_all([building, distributor])
     db.flush()
     if with_items:

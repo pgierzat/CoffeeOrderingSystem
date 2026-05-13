@@ -22,7 +22,12 @@ def _distributor(client, headers, building_id):
             "contact_email": "acme@example.com",
             "contact_phone": "+48-1",
             "daily_prices": [
-                {"day": 1, "base_price": 10, "availability_kg": 100, "discount_tiers": []}
+                {
+                    "day": 1,
+                    "base_price": 10,
+                    "availability_kg": 100,
+                    "discount_tiers": [],
+                }
             ],
             "delivery_params": [
                 {"building_id": building_id, "lead_time_days": 1, "fixed_cost_pln": 0}

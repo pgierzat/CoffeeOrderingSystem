@@ -1,4 +1,5 @@
 """Tests for /optimization endpoints. The optimizer HTTP call is mocked."""
+
 import uuid
 from unittest.mock import patch
 
@@ -64,7 +65,9 @@ class _FakeResponse:
     def raise_for_status(self):
         if self.status_code >= 400:
             raise httpx.HTTPStatusError(
-                "err", request=httpx.Request("POST", "http://x"), response=self  # type: ignore[arg-type]
+                "err",
+                request=httpx.Request("POST", "http://x"),
+                response=self,  # type: ignore[arg-type]
             )
 
 

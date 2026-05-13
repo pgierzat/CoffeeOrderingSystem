@@ -37,9 +37,7 @@ def test_inventory_lists_with_fill_percent(client, auth_headers):
 def test_update_inventory(client, auth_headers):
     headers, _ = auth_headers
     b = _building(client, headers, capacity=200, init=50)
-    resp = client.put(
-        f"/inventory/{b['id']}?current_kg=120", headers=headers
-    )
+    resp = client.put(f"/inventory/{b['id']}?current_kg=120", headers=headers)
     assert resp.status_code == 200
     assert resp.json()["current_inventory_kg"] == 120
     after = client.get("/inventory", headers=headers).json()[0]

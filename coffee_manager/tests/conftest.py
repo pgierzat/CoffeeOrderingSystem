@@ -7,6 +7,7 @@ We avoid requiring a real Postgres instance by:
   3) Creating an in-memory SQLite engine, building the schema from the
      SQLAlchemy metadata, and overriding the FastAPI `get_db` dependency.
 """
+
 from __future__ import annotations
 
 import os
@@ -128,7 +129,9 @@ def user_factory(db):
     """Create a User and return it. Uses a deliberately weak hash override
     elsewhere for speed where applicable, but here uses real bcrypt."""
 
-    def _make(username: str = "alice", password: str = "pw12345", role: str = "coordinator") -> User:
+    def _make(
+        username: str = "alice", password: str = "pw12345", role: str = "coordinator"
+    ) -> User:
         u = User(
             name=username,
             password_hash=auth_module.hash_password(password),

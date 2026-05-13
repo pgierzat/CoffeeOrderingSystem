@@ -53,9 +53,7 @@ def test_update_building_replaces_demand(client, auth_headers):
     new_payload = _make_payload(
         name="HQ2", capacity=600, init=50, demand=[{"day": 1, "demand_kg": 99}]
     )
-    resp = client.put(
-        f"/buildings/{created['id']}", json=new_payload, headers=headers
-    )
+    resp = client.put(f"/buildings/{created['id']}", json=new_payload, headers=headers)
     assert resp.status_code == 200
     body = resp.json()
     assert body["name"] == "HQ2"

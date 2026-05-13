@@ -1,4 +1,5 @@
 """Unit tests for coffee_manager.auth helpers (no DB needed)."""
+
 import time
 import uuid
 
