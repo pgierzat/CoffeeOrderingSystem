@@ -38,10 +38,16 @@ def base_request() -> OptimizationRequest:
                 id="D1",
                 daily_prices=[
                     DailyPriceData(
-                        day=1, base_price=12.0, availability_kg=100, discount_tiers=_tiers()
+                        day=1,
+                        base_price=12.0,
+                        availability_kg=100,
+                        discount_tiers=_tiers(),
                     ),
                     DailyPriceData(
-                        day=2, base_price=12.0, availability_kg=100, discount_tiers=_tiers()
+                        day=2,
+                        base_price=12.0,
+                        availability_kg=100,
+                        discount_tiers=_tiers(),
                     ),
                 ],
                 delivery_params=[
@@ -88,23 +94,33 @@ def full_mock_request() -> OptimizationRequest:
         planning_days=days,
         decay_rate=0.05,
         historical_arrivals=[
-            HistoricalArrival(distributor_id="D1", building_id="B1", day=1, quantity_kg=25.0),
+            HistoricalArrival(
+                distributor_id="D1", building_id="B1", day=1, quantity_kg=25.0
+            ),
         ],
         distributors=[
             DistributorData(
                 id="D1",
                 daily_prices=prices(12.0, 10.0, 8.0),
                 delivery_params=[
-                    DeliveryParamData(building_id="B1", lead_time_days=1, fixed_cost_pln=50),
-                    DeliveryParamData(building_id="B2", lead_time_days=1, fixed_cost_pln=50),
+                    DeliveryParamData(
+                        building_id="B1", lead_time_days=1, fixed_cost_pln=50
+                    ),
+                    DeliveryParamData(
+                        building_id="B2", lead_time_days=1, fixed_cost_pln=50
+                    ),
                 ],
             ),
             DistributorData(
                 id="D2",
                 daily_prices=prices(11.0, 9.5, 7.5),
                 delivery_params=[
-                    DeliveryParamData(building_id="B1", lead_time_days=2, fixed_cost_pln=60),
-                    DeliveryParamData(building_id="B2", lead_time_days=2, fixed_cost_pln=60),
+                    DeliveryParamData(
+                        building_id="B1", lead_time_days=2, fixed_cost_pln=60
+                    ),
+                    DeliveryParamData(
+                        building_id="B2", lead_time_days=2, fixed_cost_pln=60
+                    ),
                 ],
             ),
         ],
@@ -258,7 +274,9 @@ class TestSolveInventoryConstraint:
 
 
 class TestSolveNonOptimal:
-    def _make_infeasible(self, base_request: OptimizationRequest) -> OptimizationRequest:
+    def _make_infeasible(
+        self, base_request: OptimizationRequest
+    ) -> OptimizationRequest:
         infeasible = copy.deepcopy(base_request)
         # Demand far exceeds availability and inventory capacity.
         for b in infeasible.buildings:
