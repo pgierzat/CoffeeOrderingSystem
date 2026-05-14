@@ -1,6 +1,14 @@
 /* eslint-disable */
 /* tslint:disable */
 // @ts-nocheck
+/*
+ * ---------------------------------------------------------------
+ * ## THIS FILE WAS GENERATED VIA SWAGGER-TYPESCRIPT-API        ##
+ * ##                                                           ##
+ * ## AUTHOR: acacode                                           ##
+ * ## SOURCE: https://github.com/acacode/swagger-typescript-api ##
+ * ---------------------------------------------------------------
+ */
 
 export interface ErrorResponse {
   detail?: string;
@@ -15,6 +23,7 @@ export interface LoginRequest {
 export interface LoginResponse {
   /** Bearer token for use in Authorization header */
   token?: string;
+  /** @format UUID */
   user_id?: string;
   role?: "coordinator" | "admin";
 }
@@ -53,6 +62,7 @@ export interface DailyPrice {
    * @format float
    */
   availability_kg: number;
+  /** Discount tiers applicable on this day */
   discount_tiers?: DiscountTier[];
 }
 
@@ -84,16 +94,16 @@ export interface DeliveryParams {
 }
 
 export interface DistributorCreateRequest {
-  name: string;
+  username: string;
   /** @format email */
   contact_email: string;
-  contact_phone?: string | null;
+  contact_phone: string;
   daily_prices: DailyPrice[];
   delivery_params: DeliveryParams[];
 }
 
 export interface DistributorUpdateRequest {
-  name?: string | null;
+  username?: string | null;
   contact_email?: string | null;
   contact_phone?: string | null;
   daily_prices?: DailyPrice[] | null;
@@ -102,6 +112,7 @@ export interface DistributorUpdateRequest {
 
 export type DistributorResponse = DistributorCreateRequest & {
   id?: string;
+  active?: boolean;
   /** @format date-time */
   created_at?: string;
   /** @format date-time */
@@ -138,6 +149,11 @@ export interface BuildingCreateRequest {
 
 export type BuildingResponse = BuildingCreateRequest & {
   id?: string;
+  /**
+   * Current inventory level [kg]
+   * @format float
+   */
+  current_inventory_kg?: number;
   /** @format date-time */
   created_at?: string;
   /** @format date-time */
@@ -157,8 +173,6 @@ export interface ScenarioCreateRequest {
   distributor_ids: string[];
   /** List of building IDs */
   building_ids: string[];
-  /** Discount tiers */
-  discount_tiers: DiscountTier[];
   /**
    * Daily coffee decay rate
    * @format float
@@ -172,12 +186,21 @@ export interface ScenarioCreateRequest {
 }
 
 export interface OrderItem {
+  /** @format uuid */
   distributor_id?: string;
+  /** @format uuid */
   building_id?: string;
+  /** @min 1 */
   day?: number;
-  /** 0 = no tier, >= 1 = discount tier number */
+  /**
+   * 0 = no tier, >= 1 = discount tier number
+   * @min 0
+   */
   threshold_level?: number;
-  /** @format float */
+  /**
+   * @format float
+   * @min 0
+   */
   quantity_kg?: number;
 }
 
@@ -189,7 +212,9 @@ export interface InventoryLevel {
 }
 
 export interface OptimizationResponse {
+  /** @format UUID */
   scenario_id?: string;
+  /** @format UUID */
   result_id?: string;
   /** AMPL solver status */
   status?: "Optimal" | "Infeasible" | "Unbounded" | "Not Solved";
@@ -198,6 +223,8 @@ export interface OptimizationResponse {
    * @format float
    */
   total_cost_pln?: number;
+  /** Raw solver status message */
+  solver_message?: string | null;
   /** Order schedule */
   orders?: OrderItem[];
   /** Projected inventory levels */
@@ -207,7 +234,7 @@ export interface OptimizationResponse {
     purchase_discount?: number;
     fixed_delivery?: number;
     total?: number;
-  };
+  } | null;
 }
 
 export interface OrderRecord {
@@ -216,13 +243,17 @@ export interface OrderRecord {
   scenario_id?: string;
   orders?: OrderItem[];
   total_cost_pln?: number;
+  /** @format UUID */
   confirmed_by?: string;
   status?: "confirmed" | "pending" | "cancelled";
   /** @format date-time */
   created_at?: string;
+  /** @format date-time */
+  updated_at?: string;
 }
 
 export interface InventoryStatus {
+  /** @format UUID */
   building_id?: string;
   building_name?: string;
   /** @format float */
@@ -243,11 +274,14 @@ export interface ApiKeyCreateRequest {
 
 export interface ApiKeyResponse {
   id?: string;
-  /** API key (format: cof_...) */
+  /** API key (format: cof_...) — only present on creation */
   key?: string;
   label?: string;
+  /** @format UUID */
   distributor_id?: string;
   active?: boolean;
+  /** @format date-time */
+  revoked_at?: string | null;
   /** @format date-time */
   created_at?: string;
 }
@@ -649,7 +683,7 @@ export class Api<
      * @secure
      */
     revokeApiKey: (keyId: string, params: RequestParams = {}) =>
-      this.request<void, any>({
+      this.request<void, ErrorResponse>({
         path: `/api-keys/${keyId}`,
         method: "DELETE",
         secure: true,
@@ -795,6 +829,24 @@ export class Api<
         format: "json",
         ...params,
       }),
+
+    /**
+     * No description
+     *
+     * @tags Optimization
+     * @name GetOptimizationResult
+     * @summary Get optimization result details
+     * @request GET:/optimization/{result_id}
+     * @secure
+     */
+    getOptimizationResult: (resultId: string, params: RequestParams = {}) =>
+      this.request<OptimizationResponse, ErrorResponse>({
+        path: `/optimization/${resultId}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
   };
   orders = {
     /**
@@ -842,6 +894,50 @@ export class Api<
         method: "POST",
         query: query,
         secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Orders
+     * @name GetOrder
+     * @summary Get order details
+     * @request GET:/orders/{order_id}
+     * @secure
+     */
+    getOrder: (orderId: string, params: RequestParams = {}) =>
+      this.request<OrderRecord, ErrorResponse>({
+        path: `/orders/${orderId}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Orders
+     * @name UpdateOrderStatus
+     * @summary Update order status
+     * @request PATCH:/orders/{order_id}/status
+     * @secure
+     */
+    updateOrderStatus: (
+      orderId: string,
+      data: {
+        status: "confirmed" | "pending" | "cancelled";
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<OrderRecord, ErrorResponse>({
+        path: `/orders/${orderId}/status`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

@@ -1,16 +1,28 @@
+import { useState, useEffect } from 'react'
 import {
   Card, Text, Badge,
   Table, TableHead, TableRow, TableHeaderCell, TableBody, TableCell,
 } from '@tremor/react'
-import { mockOrders } from '../data/mock'
+import { api } from '../api/client'
+import type { OrderRecord } from '../api/api'
 
-const statusConfig: Record<string, { label: string; color: 'green' | 'blue' | 'gray' }> = {
+const statusConfig: Record<string, { label: string; color: 'green' | 'blue' | 'gray' | 'yellow' }> = {
   confirmed: { label: 'Confirmed', color: 'blue' },
-  delivered: { label: 'Delivered', color: 'green' },
+  pending:   { label: 'Pending',   color: 'yellow' },
   cancelled: { label: 'Cancelled', color: 'gray' },
 }
 
 export default function Orders() {
+  const [orders, setOrders] = useState<OrderRecord[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.orders.listOrders()
+      .then(res => setOrders(res.data))
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
   return (
     <div>
       <div className="mb-6">
@@ -23,59 +35,57 @@ export default function Orders() {
       </div>
 
       <Card>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableHeaderCell>ID</TableHeaderCell>
-              <TableHeaderCell>Scenario</TableHeaderCell>
-              <TableHeaderCell>Distributor</TableHeaderCell>
-              <TableHeaderCell>Building</TableHeaderCell>
-              <TableHeaderCell>Quantity</TableHeaderCell>
-              <TableHeaderCell>Total cost</TableHeaderCell>
-              <TableHeaderCell>Date</TableHeaderCell>
-              <TableHeaderCell>Status</TableHeaderCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {mockOrders.map(o => {
-              const s = statusConfig[o.status] ?? statusConfig['confirmed']
-              return (
-                <TableRow key={o.id}>
-                  <TableCell>
-                    <Text className="font-mono text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
-                      {o.id}
-                    </Text>
-                  </TableCell>
-                  <TableCell>
-                    <Text className="text-sm">{o.scenario}</Text>
-                  </TableCell>
-                  <TableCell>
-                    <Text className="font-medium">{o.distributor}</Text>
-                  </TableCell>
-                  <TableCell>
-                    <Text>{o.building}</Text>
-                  </TableCell>
-                  <TableCell>
-                    <Text>{o.quantity_kg} kg</Text>
-                  </TableCell>
-                  <TableCell>
-                    <Text className="font-semibold">
-                      {o.total_cost_pln.toLocaleString('en-US')} PLN
-                    </Text>
-                  </TableCell>
-                  <TableCell>
-                    <Text className="text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
-                      {new Date(o.created_at).toLocaleDateString('en-US')}
-                    </Text>
-                  </TableCell>
-                  <TableCell>
-                    <Badge color={s.color}>{s.label}</Badge>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
+        {loading ? (
+          <Text>Loading...</Text>
+        ) : (
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableHeaderCell>Order ID</TableHeaderCell>
+                <TableHeaderCell>Scenario</TableHeaderCell>
+                <TableHeaderCell>Items</TableHeaderCell>
+                <TableHeaderCell>Total cost</TableHeaderCell>
+                <TableHeaderCell>Date</TableHeaderCell>
+                <TableHeaderCell>Status</TableHeaderCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {orders.map(o => {
+                const s = statusConfig[o.status ?? ''] ?? statusConfig['confirmed']
+                return (
+                  <TableRow key={o.id}>
+                    <TableCell>
+                      <Text className="font-mono text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                        {o.id?.slice(0, 8)}…
+                      </Text>
+                    </TableCell>
+                    <TableCell>
+                      <Text className="font-mono text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                        {o.scenario_id?.slice(0, 8)}…
+                      </Text>
+                    </TableCell>
+                    <TableCell>
+                      <Text>{o.orders?.length ?? 0} deliveries</Text>
+                    </TableCell>
+                    <TableCell>
+                      <Text className="font-semibold">
+                        {(o.total_cost_pln ?? 0).toLocaleString('en-US')} PLN
+                      </Text>
+                    </TableCell>
+                    <TableCell>
+                      <Text className="text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                        {o.created_at ? new Date(o.created_at).toLocaleDateString('en-US') : '—'}
+                      </Text>
+                    </TableCell>
+                    <TableCell>
+                      <Badge color={s.color}>{s.label}</Badge>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        )}
       </Card>
     </div>
   )
