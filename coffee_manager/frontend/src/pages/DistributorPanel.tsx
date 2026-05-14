@@ -1,7 +1,6 @@
-import { useState, type FocusEvent } from 'react'
+import { useEffect, useState, type FocusEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Text, Badge, Button } from '@tremor/react'
-import { mockDistributorSelf } from '../data/mock'
 import { useTheme } from '../context/ThemeContext'
 import { api } from '../api/client'
 import { buildDistributorUpdatePayload } from '../utils/distributorPanelMapper'
@@ -47,22 +46,76 @@ const selectZeroOnFocus = (event: FocusEvent<HTMLInputElement>) => {
   }
 }
 
+const getApiKey = () => localStorage.getItem('dist_auth') ?? ''
+
 export default function DistributorPanel() {
   const navigate = useNavigate()
   const { theme, toggle } = useTheme()
-  const dist = mockDistributorSelf
 
-  const [prices, setPrices] = useState<DayPrice[]>(
-    () =>
-      dist.daily_prices.map((price, index) => ({
-        ...price,
-        local_id: `day-${price.day}-${index}`,
-      })) as DayPrice[],
-  )
-  const [delivery, setDelivery] = useState<DeliveryParam[]>(dist.delivery_params)
+  const [distributorName, setDistributorName] = useState('Distributor')
+  const [contactEmail, setContactEmail] = useState('')
+  const [prices, setPrices] = useState<DayPrice[]>([])
+  const [delivery, setDelivery] = useState<DeliveryParam[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+
+  useEffect(() => {
+    const loadDistributorData = async () => {
+      const apiKey = getApiKey()
+
+      if (!apiKey) {
+        navigate('/distributor/login')
+        return
+      }
+
+      setLoading(true)
+      setLoadError('')
+
+      try {
+        const response = await api.distributors.getOwnPrices({
+          headers: {
+            'X-Api-Key': apiKey,
+          },
+        })
+
+        const data = response.data as any
+
+        setDistributorName(data.username ?? 'Distributor')
+        setContactEmail(data.contact_email ?? '')
+
+        setPrices(
+          (data.daily_prices ?? []).map((price: any, index: number) => ({
+            local_id: `day-${price.day}-${index}`,
+            day: price.day,
+            base_price: price.base_price,
+            availability_kg: price.availability_kg,
+            tiers: (price.discount_tiers ?? []).map((tier: any) => ({
+              threshold: tier.quantity_kg,
+              price: tier.unit_price,
+            })),
+          })),
+        )
+
+        setDelivery(
+          (data.delivery_params ?? []).map((param: any, index: number) => ({
+            building_id: param.building_id,
+            building_name: param.building_name ?? `Building ${index + 1}`,
+            lead_time_days: param.lead_time_days,
+            fixed_cost_pln: param.fixed_cost_pln,
+          })),
+        )
+      } catch {
+        setLoadError('Could not load distributor data')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadDistributorData()
+  }, [navigate])
 
   const handleLogout = () => {
     localStorage.removeItem('dist_auth')
@@ -70,7 +123,7 @@ export default function DistributorPanel() {
   }
 
   const handleSave = async () => {
-    const apiKey = localStorage.getItem('dist_auth')
+    const apiKey = getApiKey()
 
     if (!apiKey) {
       setSaveError('Missing API key. Please sign in again.')
@@ -170,6 +223,26 @@ export default function DistributorPanel() {
   }
 
   const sortedPrices = [...prices].sort((a, b) => a.day - b.day)
+  const apiKeyForDisplay = getApiKey()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-tremor-background-muted dark:bg-dark-tremor-background flex items-center justify-center">
+        <Text>Loading distributor data...</Text>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-tremor-background-muted dark:bg-dark-tremor-background flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <Text className="text-red-500">{loadError}</Text>
+          <Button variant="secondary" onClick={handleLogout}>Back to login</Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-tremor-background-muted dark:bg-dark-tremor-background">
@@ -189,7 +262,7 @@ export default function DistributorPanel() {
           >
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
-          <span className="text-sm text-tremor-content dark:text-dark-tremor-content hidden sm:inline">{dist.name}</span>
+          <span className="text-sm text-tremor-content dark:text-dark-tremor-content hidden sm:inline">{distributorName}</span>
           <Button size="xs" variant="secondary" onClick={handleLogout}>Logout</Button>
         </div>
       </header>
@@ -199,10 +272,10 @@ export default function DistributorPanel() {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-sm font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong truncate">
-                {dist.name}
+                {distributorName}
               </p>
               <p className="text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle mt-0.5">
-                {dist.contact_email}
+                {contactEmail}
               </p>
             </div>
             <Badge color="green" size="xs">Active</Badge>
@@ -210,7 +283,7 @@ export default function DistributorPanel() {
           <div className="mt-3 pt-3 border-t border-tremor-border dark:border-dark-tremor-border">
             <Text className="text-xs">API Key</Text>
             <code className="text-xs text-tremor-content dark:text-dark-tremor-content bg-tremor-background-muted dark:bg-dark-tremor-background-muted px-2 py-1 rounded mt-1 block break-all">
-              {dist.api_key.slice(0, 12)}••••••••••••
+              {apiKeyForDisplay ? `${apiKeyForDisplay.slice(0, 12)}••••••••••••` : 'No API key'}
             </code>
           </div>
         </Card>
