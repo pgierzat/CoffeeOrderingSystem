@@ -30,15 +30,12 @@ const iconBtnCls = "text-xs px-1.5 py-0.5 rounded border transition-colors"
 const createLocalId = () =>
   `day-${Date.now()}-${Math.random().toString(36).slice(2)}`
 
-const getNextAvailableDay = (prices: DayPrice[]) => {
-  const usedDays = new Set(prices.map(p => p.day))
-  let day = 1
-
-  while (usedDays.has(day)) {
-    day += 1
+const getNextWeekStart = (prices: DayPrice[]) => {
+  if (prices.length === 0) {
+    return 1
   }
 
-  return day
+  return Math.max(...prices.map(p => p.day)) + 1
 }
 
 const selectZeroOnFocus = (event: FocusEvent<HTMLInputElement>) => {
@@ -180,17 +177,20 @@ export default function DistributorPanel() {
     setPrices(prev => prev.filter(p => p.local_id !== localId))
   }
 
-  const addDay = () => {
-    setPrices(prev => [
-      ...prev,
-      {
-        local_id: createLocalId(),
-        day: getNextAvailableDay(prev),
+  const addWeek = () => {
+    setPrices(prev => {
+      const startDay = getNextWeekStart(prev)
+
+      const weekPrices: DayPrice[] = Array.from({ length: 7 }, (_, index) => ({
+        local_id: `${createLocalId()}-${index}`,
+        day: startDay + index,
         base_price: 0,
         availability_kg: 0,
         tiers: [],
-      },
-    ])
+      }))
+
+      return [...prev, ...weekPrices]
+    })
   }
 
   const updateDayNumber = (localId: string, value: string) => {
@@ -368,7 +368,7 @@ export default function DistributorPanel() {
               {saving && <Text className="text-xs text-tremor-content-subtle">Saving...</Text>}
               {saved && <Text className="text-xs text-green-600">Saved ✓</Text>}
               {saveError && <Text className="text-xs text-red-500">{saveError}</Text>}
-              <Button size="xs" variant="secondary" onClick={addDay}>+ Add day</Button>
+              <Button size="xs" variant="secondary" onClick={addWeek}>+ Add week</Button>
               <Button size="xs" onClick={handleSave} disabled={saving}>
                 {saving ? 'Saving...' : 'Save changes'}
               </Button>
@@ -475,10 +475,10 @@ export default function DistributorPanel() {
             ))}
 
             <button
-              onClick={addDay}
+              onClick={addWeek}
               className="flex items-center justify-center min-h-[120px] rounded-tremor-default border-2 border-dashed border-tremor-border dark:border-dark-tremor-border text-tremor-content-subtle dark:text-dark-tremor-content-subtle hover:border-tremor-brand dark:hover:border-dark-tremor-brand hover:text-tremor-brand dark:hover:text-dark-tremor-brand transition-colors text-sm"
             >
-              + Add day
+              + Add week
             </button>
           </div>
         </section>
