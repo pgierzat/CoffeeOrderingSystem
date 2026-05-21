@@ -3,7 +3,6 @@
 // @ts-nocheck
 
 
-
 /** ApiKeyCreateRequest */
 export interface ApiKeyCreateRequest {
   /** Label */
@@ -743,6 +742,26 @@ export class Api<
         body: data,
         secure: true,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Distributors, Distributors - Self Service
+     * @name GetOwnAvailableBuildingsDistributorsSelfAvailableBuildingsGet
+     * @summary Get Own Available Buildings
+     * @request GET:/distributors/self/available-buildings
+     * @secure
+     */
+    getOwnAvailableBuildingsDistributorsSelfAvailableBuildingsGet: (
+      params: RequestParams = {},
+    ) =>
+      this.request<BuildingResponse[], any>({
+        path: `/distributors/self/available-buildings`,
+        method: "GET",
+        secure: true,
         format: "json",
         ...params,
       }),

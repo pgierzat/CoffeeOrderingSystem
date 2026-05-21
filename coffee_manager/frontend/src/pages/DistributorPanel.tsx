@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, Text, Badge, Button } from '@tremor/react'
 import { useTheme } from '../context/ThemeContext'
 import { api } from '../api/client'
+import type { BuildingResponse } from '../api/api'
 import { buildDistributorUpdatePayload } from '../utils/distributorPanelMapper'
 
 type Tier = { threshold: number; price: number }
@@ -56,6 +57,11 @@ export default function DistributorPanel() {
   const [contactEmail, setContactEmail] = useState('')
   const [prices, setPrices] = useState<DayPrice[]>([])
   const [delivery, setDelivery] = useState<DeliveryParam[]>([])
+  const [availableBuildings, setAvailableBuildings] = useState<BuildingResponse[]>([])
+  const [addingDelivery, setAddingDelivery] = useState(false)
+  const [newDeliveryBuildingId, setNewDeliveryBuildingId] = useState('')
+  const [newDeliveryLeadTime, setNewDeliveryLeadTime] = useState(1)
+  const [newDeliveryFixedCost, setNewDeliveryFixedCost] = useState(0)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [saved, setSaved] = useState(false)
@@ -75,16 +81,25 @@ export default function DistributorPanel() {
       setLoadError('')
 
       try {
-        const response = await api.distributors.getOwnPrices({
-          headers: {
-            'X-Api-Key': apiKey,
-          },
-        })
+        const [pricesResponse, buildingsResponse] = await Promise.all([
+          api.distributors.getOwnPrices({
+            headers: {
+              'X-Api-Key': apiKey,
+            },
+          }),
+          api.distributors.getOwnAvailableBuildings({
+            headers: {
+              'X-Api-Key': apiKey,
+            },
+          }),
+        ])
 
-        const data = response.data as any
+        const data = pricesResponse.data as any
+        const buildings = buildingsResponse.data
 
         setDistributorName(data.username ?? 'Distributor')
         setContactEmail(data.contact_email ?? '')
+        setAvailableBuildings(buildings)
 
         setPrices(
           (data.daily_prices ?? []).map((price: any, index: number) => ({
@@ -100,12 +115,16 @@ export default function DistributorPanel() {
         )
 
         setDelivery(
-          (data.delivery_params ?? []).map((param: any, index: number) => ({
-            building_id: param.building_id,
-            building_name: param.building_name ?? `Building ${index + 1}`,
-            lead_time_days: param.lead_time_days,
-            fixed_cost_pln: param.fixed_cost_pln,
-          })),
+          (data.delivery_params ?? []).map((param: any, index: number) => {
+            const building = buildings.find(b => b.id === param.building_id)
+
+            return {
+              building_id: param.building_id,
+              building_name: building?.name ?? `Building ${index + 1}`,
+              lead_time_days: param.lead_time_days,
+              fixed_cost_pln: param.fixed_cost_pln,
+            }
+          }),
         )
       } catch {
         setLoadError('Could not load distributor data')
@@ -222,8 +241,60 @@ export default function DistributorPanel() {
     setDelivery(prev => prev.map(d => d.building_id === buildingId ? { ...d, [field]: parseFloat(value) || 0 } : d))
   }
 
+  const getUnusedBuildings = () =>
+    availableBuildings.filter(
+      building => !delivery.some(param => param.building_id === building.id),
+    )
+
+  const openAddDelivery = () => {
+    const firstAvailableBuilding = getUnusedBuildings()[0]
+
+    if (!firstAvailableBuilding) {
+      return
+    }
+
+    setNewDeliveryBuildingId(firstAvailableBuilding.id)
+    setNewDeliveryLeadTime(1)
+    setNewDeliveryFixedCost(0)
+    setAddingDelivery(true)
+  }
+
+  const cancelAddDelivery = () => {
+    setAddingDelivery(false)
+    setNewDeliveryBuildingId('')
+    setNewDeliveryLeadTime(1)
+    setNewDeliveryFixedCost(0)
+  }
+
+  const addDelivery = () => {
+    const building = availableBuildings.find(
+      item => item.id === newDeliveryBuildingId,
+    )
+
+    if (!building) {
+      return
+    }
+
+    setDelivery(prev => [
+      ...prev,
+      {
+        building_id: building.id,
+        building_name: building.name,
+        lead_time_days: newDeliveryLeadTime,
+        fixed_cost_pln: newDeliveryFixedCost,
+      },
+    ])
+
+    cancelAddDelivery()
+  }
+
+  const removeDelivery = (buildingId: string) => {
+    setDelivery(prev => prev.filter(param => param.building_id !== buildingId))
+  }
+
   const sortedPrices = [...prices].sort((a, b) => a.day - b.day)
   const apiKeyForDisplay = getApiKey()
+  const unusedBuildings = getUnusedBuildings()
 
   if (loading) {
     return (
@@ -413,20 +484,110 @@ export default function DistributorPanel() {
         </section>
 
         <section>
-          <p className="text-sm font-medium text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis mb-3">
-            Delivery parameters per building
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-medium text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">
+              Delivery parameters per building
+            </p>
+            <Button
+              size="xs"
+              variant="secondary"
+              onClick={openAddDelivery}
+              disabled={unusedBuildings.length === 0 || addingDelivery}
+            >
+              + Add building parameter
+            </Button>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {delivery.map(dp => (
-              <Card key={dp.building_id}>
-                <p className="text-sm font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong mb-3 truncate">
-                  {dp.building_name}
+            {addingDelivery && (
+              <Card className="space-y-3">
+                <p className="text-sm font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                  Add delivery parameter
                 </p>
+
+                <div>
+                  <label className={labelCls}>Building</label>
+                  <select
+                    value={newDeliveryBuildingId}
+                    onChange={e => setNewDeliveryBuildingId(e.target.value)}
+                    className={fieldCls}
+                  >
+                    {unusedBuildings.map(building => (
+                      <option key={building.id} value={building.id}>
+                        {building.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={labelCls}>Lead time (days)</label>
                     <input
-                      type="number" min="0" step="1"
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={newDeliveryLeadTime}
+                      onFocus={selectZeroOnFocus}
+                      onChange={e => setNewDeliveryLeadTime(parseInt(e.target.value) || 0)}
+                      className={fieldCls}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Fixed cost (PLN)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={newDeliveryFixedCost}
+                      onFocus={selectZeroOnFocus}
+                      onChange={e => setNewDeliveryFixedCost(parseFloat(e.target.value) || 0)}
+                      className={fieldCls}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button size="xs" onClick={addDelivery} disabled={!newDeliveryBuildingId}>
+                    Add parameter
+                  </Button>
+                  <Button size="xs" variant="secondary" onClick={cancelAddDelivery}>
+                    Cancel
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {delivery.length === 0 && !addingDelivery && (
+              <Card>
+                <Text className="text-sm text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                  No delivery parameters configured yet. Add a building parameter to define delivery time and fixed cost.
+                </Text>
+              </Card>
+            )}
+
+            {delivery.map(dp => (
+              <Card key={dp.building_id}>
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <p className="text-sm font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong truncate">
+                    {dp.building_name}
+                  </p>
+                  <button
+                    onClick={() => removeDelivery(dp.building_id)}
+                    className={`${iconBtnCls} border-red-200 text-red-500 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950`}
+                    title="Remove delivery parameter"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelCls}>Lead time (days)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
                       value={dp.lead_time_days}
                       onFocus={selectZeroOnFocus}
                       onChange={e => updateDelivery(dp.building_id, 'lead_time_days', e.target.value)}
@@ -436,7 +597,9 @@ export default function DistributorPanel() {
                   <div>
                     <label className={labelCls}>Fixed cost (PLN)</label>
                     <input
-                      type="number" min="0" step="1"
+                      type="number"
+                      min="0"
+                      step="1"
                       value={dp.fixed_cost_pln}
                       onFocus={selectZeroOnFocus}
                       onChange={e => updateDelivery(dp.building_id, 'fixed_cost_pln', e.target.value)}

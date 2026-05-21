@@ -35,6 +35,7 @@ export const api = {
     deleteDistributor: rawApi.distributors.deleteDistributorDistributorsDistributorIdDelete,
     getOwnPrices: rawApi.distributors.getOwnPricesDistributorsSelfPricesGet,
     updateOwnPrices: rawApi.distributors.updateOwnPricesDistributorsSelfPricesPut,
+    getOwnAvailableBuildings: rawApi.distributors.getOwnAvailableBuildingsDistributorsSelfAvailableBuildingsGet,
     listApiKeys: rawApi.distributors.listApiKeysDistributorsDistributorIdApiKeysGet,
     createApiKey: rawApi.distributors.createApiKeyDistributorsDistributorIdApiKeysPost,
   },
