@@ -59,7 +59,6 @@ export default function Buildings() {
     setName(b.name ?? '')
     setLocation(b.location ?? '')
     setMaxCap(b.max_capacity_kg ?? 0)
-    setInitInv(b.initial_inventory_kg ?? 0)
     setDailyUsage(avgDemand(b))
     setError('')
     setModal({ type: 'edit', b })
@@ -80,7 +79,7 @@ export default function Buildings() {
       name,
       location: location.trim() || null,
       max_capacity_kg: maxCap,
-      initial_inventory_kg: initInv,
+      initial_inventory_kg: modal.type === 'create' ? initInv : undefined,
       daily_demand,
     }
     try {
@@ -218,19 +217,21 @@ export default function Buildings() {
                 onChange={e => setLocation(e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className={modal.type === 'create' ? 'grid grid-cols-2 gap-3' : ''}>
               <div>
                 <label className="block text-xs text-tremor-content dark:text-dark-tremor-content mb-1">
                   Max capacity (kg) *
                 </label>
                 <NumberInput value={maxCap} onValueChange={v => setMaxCap(v ?? 0)} min={0} />
               </div>
-              <div>
-                <label className="block text-xs text-tremor-content dark:text-dark-tremor-content mb-1">
-                  Initial inventory (kg)
-                </label>
-                <NumberInput value={initInv} onValueChange={v => setInitInv(v ?? 0)} min={0} />
-              </div>
+              {modal.type === 'create' && (
+                <div>
+                  <label className="block text-xs text-tremor-content dark:text-dark-tremor-content mb-1">
+                    Initial inventory (kg)
+                  </label>
+                  <NumberInput value={initInv} onValueChange={v => setInitInv(v ?? 0)} min={0} />
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-xs text-tremor-content dark:text-dark-tremor-content mb-1">

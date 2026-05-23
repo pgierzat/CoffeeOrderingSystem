@@ -1,6 +1,6 @@
 import { Api } from './api'
 
-const API_BASE_URL = 'http://localhost:8080'
+const API_BASE_URL = 'http://localhost:8000'
 
 const rawApi = new Api({
   baseURL: API_BASE_URL,
@@ -10,6 +10,19 @@ const rawApi = new Api({
 
 const stored = localStorage.getItem('auth_token')
 if (stored) rawApi.setSecurityData(stored)
+
+rawApi.instance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      localStorage.removeItem('auth')
+      localStorage.removeItem('auth_token')
+      rawApi.setSecurityData(null)
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
 
 export const api = {
   setSecurityData: rawApi.setSecurityData.bind(rawApi),
@@ -55,5 +68,6 @@ export const api = {
     listOrders: rawApi.orders.listOrdersOrdersGet,
     confirmOrders: rawApi.orders.confirmOrdersOrdersPost,
     getOrder: rawApi.orders.getOrderOrdersOrderIdGet,
+    updateOrderStatus: rawApi.orders.updateOrderStatusOrdersOrderIdStatusPatch,
   },
 }

@@ -1,5 +1,7 @@
-from fastapi import FastAPI
+import traceback
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
 
 from coffee_manager.routers import (
     api_keys,
@@ -20,6 +22,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def debug_exception_handler(request: Request, exc: Exception):
+    return PlainTextResponse(traceback.format_exc(), status_code=500)
 
 app.include_router(auth.router)
 app.include_router(distributors.router)

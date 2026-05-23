@@ -14,6 +14,7 @@ type ModalState =
     | { type: 'edit'; d: DistributorResponse }
     | { type: 'showKey'; username: string; key: string }
     | { type: 'delete'; d: DistributorResponse }
+    | { type: 'newKey'; d: DistributorResponse }
 
 function minPrice(d: DistributorResponse): string {
     const prices = d.daily_prices ?? []
@@ -116,6 +117,17 @@ export default function Distributors() {
         } finally { setSaving(false) }
     }
 
+    async function handleNewKey() {
+        if (modal.type !== 'newKey') return
+        setSaving(true); setError('')
+        try {
+            const keyRes = await api.distributors.createApiKey(modal.d.id!, { label: 'regenerated' })
+            setModal({ type: 'showKey', username: modal.d.username ?? '', key: keyRes.data.key ?? '' })
+        } catch (e: any) {
+            setError(e?.response?.data?.detail ?? 'Failed to generate key')
+        } finally { setSaving(false) }
+    }
+
     async function handleDelete() {
         if (modal.type !== 'delete') return
         setSaving(true)
@@ -196,6 +208,9 @@ export default function Distributors() {
                                     <TableCell>
                                         <div className="flex gap-2">
                                             <Button size="xs" variant="secondary" onClick={() => openEdit(d)}>Edit</Button>
+                                            <Button size="xs" variant="secondary" onClick={() => { setError(''); setModal({ type: 'newKey', d }) }}>
+                                                New key
+                                            </Button>
                                             <Button size="xs" variant="secondary" color="red" onClick={() => setModal({ type: 'delete', d })}>
                                                 Remove
                                             </Button>
@@ -242,10 +257,10 @@ export default function Distributors() {
             )}
 
             {modal.type === 'showKey' && (
-                <Modal title="Distributor created" onClose={close} maxWidth="max-w-sm">
+                <Modal title="API key generated" onClose={close} maxWidth="max-w-sm">
                     <div className="space-y-4">
                         <p className="text-sm text-tremor-content dark:text-dark-tremor-content">
-                            <strong>{modal.username}</strong> has been added. Share the API key below — it won't be shown again.
+                            New API key for <strong>{modal.username}</strong>. Share it with the distributor — it won't be shown again.
                         </p>
                         <div className="rounded-tremor-default bg-tremor-background-muted dark:bg-dark-tremor-background-muted p-3">
                             <p className="font-mono text-sm text-tremor-content-strong dark:text-dark-tremor-content-strong break-all">
@@ -294,6 +309,19 @@ export default function Distributors() {
                     {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
                     <div className="flex gap-2">
                         <Button color="red" onClick={handleDelete} loading={saving}>Remove</Button>
+                        <Button variant="secondary" onClick={close}>Cancel</Button>
+                    </div>
+                </Modal>
+            )}
+
+            {modal.type === 'newKey' && (
+                <Modal title="Generate new API key" onClose={close} maxWidth="max-w-sm">
+                    <p className="text-sm text-tremor-content dark:text-dark-tremor-content mb-4">
+                        Generate a new API key for <strong>{modal.d.username}</strong>? Their existing keys will remain active — revoke them manually if needed.
+                    </p>
+                    {error && <p className="text-sm text-red-500 mb-3">{error}</p>}
+                    <div className="flex gap-2">
+                        <Button onClick={handleNewKey} loading={saving}>Generate key</Button>
                         <Button variant="secondary" onClick={close}>Cancel</Button>
                     </div>
                 </Modal>

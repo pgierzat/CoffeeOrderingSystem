@@ -13,6 +13,8 @@ from coffee_manager.models import (
     Distributor,
     DistributorDailyPrice,
     DistributorDiscountTier,
+    OptimizationOrderItem,
+    OrderItem,
     User,
 )
 from coffee_manager.schemas import (
@@ -325,6 +327,8 @@ def delete_distributor(
             detail="Distributor not found",
         )
 
+    db.query(OrderItem).filter(OrderItem.distributor_id == distributor_id).delete(synchronize_session=False)
+    db.query(OptimizationOrderItem).filter(OptimizationOrderItem.distributor_id == distributor_id).delete(synchronize_session=False)
     db.delete(dist)
     db.commit()
 

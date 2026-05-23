@@ -78,21 +78,21 @@ export default function DistributorPanel() {
       setLoadError('')
 
       try {
-        const [pricesResponse, buildingsResponse] = await Promise.all([
-          api.distributors.getOwnPrices({
-            headers: {
-              'X-Api-Key': apiKey,
-            },
-          }),
-          api.distributors.getOwnAvailableBuildings({
-            headers: {
-              'X-Api-Key': apiKey,
-            },
-          }),
-        ])
+        const pricesResponse = await api.distributors.getOwnPrices({
+          headers: { 'X-Api-Key': apiKey },
+        })
 
         const data = pricesResponse.data as any
-        const buildings = buildingsResponse.data
+
+        let buildings: BuildingResponse[] = []
+        try {
+          const buildingsResponse = await api.distributors.getOwnAvailableBuildings({
+            headers: { 'X-Api-Key': apiKey },
+          })
+          buildings = buildingsResponse.data
+        } catch {
+          
+        }
 
         setDistributorName(data.username ?? 'Distributor')
         setContactEmail(data.contact_email ?? '')
@@ -123,7 +123,8 @@ export default function DistributorPanel() {
             }
           }),
         )
-      } catch {
+      } catch (e) {
+        console.error('Distributor panel load error:', e)
         setLoadError('Could not load distributor data')
       } finally {
         setLoading(false)
