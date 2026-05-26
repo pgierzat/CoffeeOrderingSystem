@@ -168,7 +168,9 @@ def _build_correction_ampl_data(request: CorrectionOptimizationRequest) -> dict:
                 all_levels.add(tier.level)
 
     if not all_levels:
-        raise ValueError("At least one discount tier is required across all distributors")
+        raise ValueError(
+            "At least one discount tier is required across all distributors"
+        )
 
     L = sorted(all_levels)
 
@@ -217,9 +219,9 @@ def _build_correction_ampl_data(request: CorrectionOptimizationRequest) -> dict:
 
     for order in request.previous_orders:
         if order.threshold_level == 0:
-            x0_prev[
-                (order.distributor_id, order.building_id, order.day)
-            ] = order.quantity_kg
+            x0_prev[(order.distributor_id, order.building_id, order.day)] = (
+                order.quantity_kg
+            )
         else:
             x_prev[
                 (

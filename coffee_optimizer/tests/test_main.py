@@ -570,7 +570,9 @@ class TestCoffeeCorrection:
         total_by_day: dict[int, float] = {}
 
         for order in result.final_orders:
-            total_by_day[order.day] = total_by_day.get(order.day, 0.0) + order.quantity_kg
+            total_by_day[order.day] = (
+                total_by_day.get(order.day, 0.0) + order.quantity_kg
+            )
 
         for day in correction_base_request.planning_days:
             assert total_by_day[day] >= 20.0 - 1e-6

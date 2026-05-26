@@ -86,6 +86,7 @@ class OptimizationResult(BaseModel):
     inventory_levels: list[InventoryLevel] = []
     cost_breakdown: CostBreakdown | None = None
 
+
 class PlannedOrderItem(BaseModel):
     distributor_id: str
     building_id: str
