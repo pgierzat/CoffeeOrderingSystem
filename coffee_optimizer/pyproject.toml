@@ -19,6 +19,10 @@ dependencies = [
 [tool.poetry]
 packages = [{include = "coffee_optimizer", from = "src"}]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

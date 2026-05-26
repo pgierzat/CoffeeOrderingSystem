@@ -5,6 +5,9 @@ import pytest
 
 from coffee_optimizer.models import (
     BuildingData,
+    CorrectionCostData,
+    CorrectionLimitData,
+    CorrectionOptimizationRequest,
     DailyDemandData,
     DailyPriceData,
     DeliveryParamData,
@@ -12,7 +15,9 @@ from coffee_optimizer.models import (
     DistributorData,
     HistoricalArrival,
     OptimizationRequest,
+    PlannedOrderItem,
 )
+from coffee_optimizer.correction_optimizer import run_correction_optimization
 from coffee_optimizer.optimizer import _SOLVE_STATUS_MAP, run_optimization
 
 # ---------------------------------------------------------------------------
@@ -426,3 +431,225 @@ class TestResultParsing:
         result = run_optimization(base_request)
 
         assert result.status == "Not Solved"
+        assert result.total_cost_pln is None
+        assert result.orders == []
+        assert result.inventory_levels == []
+
+
+# ---------------------------------------------------------------------------
+# Correction model tests
+# ---------------------------------------------------------------------------
+
+_CORRECTION_DAYS = [1, 2, 3]
+
+
+def _set_demand(request: CorrectionOptimizationRequest, demand_kg: float) -> None:
+    """Overwrite every day's demand for building B0 in place."""
+    for dd in request.buildings[0].daily_demand:
+        dd.demand_kg = demand_kg
+
+
+@pytest.fixture
+def correction_base_request() -> CorrectionOptimizationRequest:
+    """
+    Minimal correction case:
+    20 kg/day was previously planned, the new demand is 25 kg/day,
+    so the model should add a +5 kg/day correction.
+    """
+    return CorrectionOptimizationRequest(
+        planning_days=list(_CORRECTION_DAYS),
+        decay_rate=0.0,
+        distributors=[
+            DistributorData(
+                id="D0",
+                daily_prices=[
+                    DailyPriceData(
+                        day=t,
+                        base_price=10.0,
+                        availability_kg=100.0,
+                        discount_tiers=[
+                            DiscountTierData(level=1, quantity_kg=30, unit_price=10.0),
+                            DiscountTierData(level=2, quantity_kg=60, unit_price=10.0),
+                        ],
+                    )
+                    for t in _CORRECTION_DAYS
+                ],
+                delivery_params=[
+                    DeliveryParamData(
+                        building_id="B0", lead_time_days=0, fixed_cost_pln=0.0
+                    ),
+                ],
+            ),
+        ],
+        buildings=[
+            BuildingData(
+                id="B0",
+                max_capacity_kg=200,
+                initial_inventory_kg=0.0,
+                daily_demand=[
+                    DailyDemandData(day=t, demand_kg=25.0) for t in _CORRECTION_DAYS
+                ],
+            ),
+        ],
+        # 20 kg/day previously planned (below first tier -> threshold_level 0)
+        previous_orders=[
+            PlannedOrderItem(
+                distributor_id="D0",
+                building_id="B0",
+                day=t,
+                threshold_level=0,
+                quantity_kg=20.0,
+            )
+            for t in _CORRECTION_DAYS
+        ],
+        # correction cost 1 PLN/kg
+        correction_costs=[
+            CorrectionCostData(
+                distributor_id="D0", building_id="B0", day=t, cost_per_kg=1.0
+            )
+            for t in _CORRECTION_DAYS
+        ],
+        # at most 10 kg/day may be corrected
+        correction_limits=[
+            CorrectionLimitData(
+                distributor_id="D0", building_id="B0", day=t, max_correction_kg=10.0
+            )
+            for t in _CORRECTION_DAYS
+        ],
+    )
+
+
+class TestCoffeeCorrection:
+    def test_correction_returns_optimal_status(self, correction_base_request):
+        result = run_correction_optimization(correction_base_request)
+
+        assert result.status == "Optimal"
+
+    def test_correction_result_fields_present(self, correction_base_request):
+        result = run_correction_optimization(correction_base_request)
+
+        assert set(result.model_dump().keys()) == {
+            "status",
+            "total_cost_pln",
+            "solver_message",
+            "final_orders",
+            "corrections",
+            "inventory_levels",
+        }
+
+    def test_correction_total_cost_is_positive(self, correction_base_request):
+        result = run_correction_optimization(correction_base_request)
+
+        assert result.total_cost_pln is not None
+        assert result.total_cost_pln > 0
+
+    def test_correction_increases_orders_when_demand_is_higher(
+        self, correction_base_request
+    ):
+        result = run_correction_optimization(correction_base_request)
+
+        assert result.status == "Optimal"
+
+        increases = [c for c in result.corrections if c.type == "increase"]
+
+        assert len(increases) > 0
+
+        total_increase = sum(c.quantity_kg for c in increases)
+
+        # 3 days, each day: was 20 kg, need 25 kg,
+        # so we expect 15 kg of correction in total.
+        assert abs(total_increase - 15.0) < 1e-6
+
+    def test_correction_final_orders_are_at_least_previous_plan(
+        self, correction_base_request
+    ):
+        result = run_correction_optimization(correction_base_request)
+
+        assert result.status == "Optimal"
+
+        total_by_day: dict[int, float] = {}
+
+        for order in result.final_orders:
+            total_by_day[order.day] = (
+                total_by_day.get(order.day, 0.0) + order.quantity_kg
+            )
+
+        for day in correction_base_request.planning_days:
+            assert total_by_day[day] >= 20.0 - 1e-6
+
+    def test_correction_does_not_create_decreases_when_demand_is_higher(
+        self, correction_base_request
+    ):
+        result = run_correction_optimization(correction_base_request)
+
+        decreases = [c for c in result.corrections if c.type == "decrease"]
+
+        assert decreases == []
+
+    def test_correction_inventory_levels_non_negative(self, correction_base_request):
+        result = run_correction_optimization(correction_base_request)
+
+        assert result.status == "Optimal"
+
+        for inv in result.inventory_levels:
+            assert inv.level_kg >= -1e-6
+
+    def test_correction_inventory_does_not_exceed_capacity(
+        self, correction_base_request
+    ):
+        result = run_correction_optimization(correction_base_request)
+
+        assert result.status == "Optimal"
+
+        capacity = {b.id: b.max_capacity_kg for b in correction_base_request.buildings}
+        for inv in result.inventory_levels:
+            assert inv.level_kg <= capacity[inv.building_id] + 1e-6
+
+    def test_no_correction_needed_when_previous_plan_matches_demand(
+        self, correction_base_request
+    ):
+        data = copy.deepcopy(correction_base_request)
+        _set_demand(data, 20.0)
+
+        result = run_correction_optimization(data)
+
+        assert result.status == "Optimal"
+        assert result.corrections == []
+
+    def test_correction_decreases_orders_when_demand_is_lower(
+        self, correction_base_request
+    ):
+        data = copy.deepcopy(correction_base_request)
+
+        # Previous plan: 20 kg/day. New demand: 15 kg/day.
+        # The model should decrease orders by 5 kg/day.
+        _set_demand(data, 15.0)
+
+        result = run_correction_optimization(data)
+
+        assert result.status == "Optimal"
+
+        decreases = [c for c in result.corrections if c.type == "decrease"]
+
+        assert len(decreases) > 0
+
+        total_decrease = sum(c.quantity_kg for c in decreases)
+
+        assert abs(total_decrease - 15.0) < 1e-6
+
+    def test_correction_limit_too_low_makes_model_non_optimal(
+        self, correction_base_request
+    ):
+        data = copy.deepcopy(correction_base_request)
+
+        # Need +5 kg/day, but only allow +2 kg/day of correction.
+        for limit in data.correction_limits:
+            limit.max_correction_kg = 2.0
+
+        result = run_correction_optimization(data)
+
+        assert result.status != "Optimal"
+        assert result.total_cost_pln is None
+        assert result.final_orders == []
+        assert result.corrections == []
+        assert result.inventory_levels == []

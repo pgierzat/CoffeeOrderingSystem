@@ -36,6 +36,10 @@ jobs:
     - name: Install dependencies
       run: poetry install --no-interaction --no-root
 
+    - name: Install AMPL solver modules
+      if: matrix.folder == 'coffee_optimizer'
+      run: poetry run python -m amplpy.modules install cbc
+
     - name: Lint code with Ruff
       run: |
         poetry run ruff check .

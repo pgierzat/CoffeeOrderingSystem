@@ -157,6 +157,36 @@ class OptimizationResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CorrectionRequest(BaseModel):
+    name: str
+    previous_result_id: UUID
+    historical_orders: dict[str, Any] | None = None
+
+
+class CorrectionItem(BaseModel):
+    distributor_id: UUID
+    building_id: UUID
+    day: int
+    threshold_level: int = Field(ge=0)
+    type: str
+    quantity_kg: float
+
+    model_config = {"from_attributes": True}
+
+
+class CorrectionResponse(BaseModel):
+    scenario_id: UUID
+    result_id: UUID
+    status: str
+    total_cost_pln: float | None
+    solver_message: str | None
+    orders: list[OrderItem]
+    corrections: list[CorrectionItem]
+    inventory_levels: list[InventoryLevel]
+
+    model_config = {"from_attributes": True}
+
+
 class OrderStatusUpdate(BaseModel):
     status: str = Field(pattern="^(confirmed|pending|cancelled)$")
 

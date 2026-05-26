@@ -23,9 +23,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.exception_handler(Exception)
 async def debug_exception_handler(request: Request, exc: Exception):
     return PlainTextResponse(traceback.format_exc(), status_code=500)
+
 
 app.include_router(auth.router)
 app.include_router(distributors.router)

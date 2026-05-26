@@ -135,8 +135,14 @@ def delete_building(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Building not found"
         )
-    db.query(OrderItem).filter(OrderItem.building_id == building_id).delete(synchronize_session=False)
-    db.query(OptimizationOrderItem).filter(OptimizationOrderItem.building_id == building_id).delete(synchronize_session=False)
-    db.query(OptimizationInventoryLevel).filter(OptimizationInventoryLevel.building_id == building_id).delete(synchronize_session=False)
+    db.query(OrderItem).filter(OrderItem.building_id == building_id).delete(
+        synchronize_session=False
+    )
+    db.query(OptimizationOrderItem).filter(
+        OptimizationOrderItem.building_id == building_id
+    ).delete(synchronize_session=False)
+    db.query(OptimizationInventoryLevel).filter(
+        OptimizationInventoryLevel.building_id == building_id
+    ).delete(synchronize_session=False)
     db.delete(building)
     db.commit()

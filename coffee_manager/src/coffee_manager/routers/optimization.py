@@ -21,6 +21,9 @@ from coffee_manager.models import (
     User,
 )
 from coffee_manager.schemas import (
+    CorrectionItem,
+    CorrectionRequest,
+    CorrectionResponse,
     CostBreakdown,
     InventoryLevel,
     OptimizationResponse,
@@ -29,6 +32,77 @@ from coffee_manager.schemas import (
 from coffee_manager.schemas import OrderItem as OrderItemSchema
 
 router = APIRouter(prefix="/optimization", tags=["Optimization"])
+
+
+def _distributors_payload(distributors, building_ids: list[str]) -> list[dict]:
+    return [
+        {
+            "id": str(d.id),
+            "daily_prices": [
+                {
+                    "day": p.day,
+                    "base_price": float(p.base_price),
+                    "availability_kg": float(p.availability_kg),
+                    "discount_tiers": [
+                        {
+                            "level": t.level,
+                            "quantity_kg": float(t.quantity_kg),
+                            "unit_price": float(t.unit_price),
+                        }
+                        for t in p.discount_tiers
+                    ],
+                }
+                for p in d.daily_prices
+            ],
+            "delivery_params": [
+                {
+                    "building_id": str(p.building_id),
+                    "lead_time_days": p.lead_time_days,
+                    "fixed_cost_pln": float(p.fixed_cost_pln),
+                }
+                for p in d.delivery_params
+                if str(p.building_id) in building_ids
+            ],
+        }
+        for d in distributors
+    ]
+
+
+def _buildings_payload(buildings) -> list[dict]:
+    return [
+        {
+            "id": str(b.id),
+            "max_capacity_kg": float(b.max_capacity_kg),
+            "initial_inventory_kg": float(b.current_inventory_kg),
+            "daily_demand": [
+                {"day": dd.day, "demand_kg": float(dd.demand_kg)}
+                for dd in b.daily_demand
+            ],
+        }
+        for b in buildings
+    ]
+
+
+def _parse_historical_arrivals(historical_orders: dict | None) -> list[dict]:
+    if not historical_orders:
+        return []
+    arrivals = []
+    for k, v in historical_orders.items():
+        parts = k.split(":")
+        if len(parts) != 2:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"historical_orders key must be 'distributor_id:building_id', got {k!r}",
+            )
+        arrivals.append(
+            {
+                "distributor_id": parts[0],
+                "building_id": parts[1],
+                "day": 1,
+                "quantity_kg": v,
+            }
+        )
+    return arrivals
 
 
 def _to_response(result: OptimizationResult) -> OptimizationResponse:
@@ -144,70 +218,10 @@ def run_optimization(
     optimizer_payload = {
         "planning_days": planning_days,
         "decay_rate": body.decay_rate,
-        "historical_arrivals": [],
-        "distributors": [
-            {
-                "id": str(d.id),
-                "daily_prices": [
-                    {
-                        "day": p.day,
-                        "base_price": float(p.base_price),
-                        "availability_kg": float(p.availability_kg),
-                        "discount_tiers": [
-                            {
-                                "level": t.level,
-                                "quantity_kg": float(t.quantity_kg),
-                                "unit_price": float(t.unit_price),
-                            }
-                            for t in p.discount_tiers
-                        ],
-                    }
-                    for p in d.daily_prices
-                ],
-                "delivery_params": [
-                    {
-                        "building_id": str(p.building_id),
-                        "lead_time_days": p.lead_time_days,
-                        "fixed_cost_pln": float(p.fixed_cost_pln),
-                    }
-                    for p in d.delivery_params
-                    if str(p.building_id) in body.building_ids
-                ],
-            }
-            for d in distributors
-        ],
-        "buildings": [
-            {
-                "id": str(b.id),
-                "max_capacity_kg": float(b.max_capacity_kg),
-                "initial_inventory_kg": float(b.current_inventory_kg),
-                "daily_demand": [
-                    {"day": dd.day, "demand_kg": float(dd.demand_kg)}
-                    for dd in b.daily_demand
-                ],
-            }
-            for b in buildings
-        ],
+        "historical_arrivals": _parse_historical_arrivals(body.historical_orders),
+        "distributors": _distributors_payload(distributors, body.building_ids),
+        "buildings": _buildings_payload(buildings),
     }
-
-    if body.historical_orders:
-        arrivals = []
-        for k, v in body.historical_orders.items():
-            parts = k.split(":")
-            if len(parts) != 2:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"historical_orders key must be 'distributor_id:building_id', got {k!r}",
-                )
-            arrivals.append(
-                {
-                    "distributor_id": parts[0],
-                    "building_id": parts[1],
-                    "day": 1,
-                    "quantity_kg": v,
-                }
-            )
-        optimizer_payload["historical_arrivals"] = arrivals
 
     try:
         response = httpx.post(
@@ -281,6 +295,187 @@ def run_optimization(
 
     db.commit()
     return _to_response(_load_result(db, result.id))
+
+
+@router.post("/correction", response_model=CorrectionResponse)
+def run_correction(
+    body: CorrectionRequest,
+    _: Annotated[User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+):
+    previous = (
+        db.query(OptimizationResult)
+        .options(selectinload(OptimizationResult.order_items))
+        .filter(OptimizationResult.id == body.previous_result_id)
+        .first()
+    )
+    if not previous:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Previous optimization result not found",
+        )
+
+    scenario = previous.scenario
+    distributor_ids = [str(d.id) for d in scenario.distributors]
+    building_ids = [str(b.id) for b in scenario.buildings]
+
+    distributors = (
+        db.query(Distributor)
+        .options(
+            selectinload(Distributor.daily_prices).selectinload(
+                DistributorDailyPrice.discount_tiers
+            ),
+            selectinload(Distributor.delivery_params),
+        )
+        .filter(Distributor.id.in_(distributor_ids))
+        .all()
+    )
+    buildings = (
+        db.query(Building)
+        .options(selectinload(Building.daily_demand))
+        .filter(Building.id.in_(building_ids))
+        .all()
+    )
+
+    planning_days = list(range(1, scenario.planning_horizon_days + 1))
+
+    previous_orders = [
+        {
+            "distributor_id": str(i.distributor_id),
+            "building_id": str(i.building_id),
+            "day": i.day,
+            "threshold_level": i.threshold_level,
+            "quantity_kg": float(i.quantity_kg),
+        }
+        for i in previous.order_items
+    ]
+
+    # Correction costs/limits live on each distributor↔building delivery param;
+    # the optimizer wants them per day, so expand over the planning horizon.
+    correction_costs: list[dict] = []
+    correction_limits: list[dict] = []
+    for d in distributors:
+        for p in d.delivery_params:
+            if str(p.building_id) not in building_ids:
+                continue
+            for day in planning_days:
+                correction_costs.append(
+                    {
+                        "distributor_id": str(d.id),
+                        "building_id": str(p.building_id),
+                        "day": day,
+                        "cost_per_kg": float(p.correction_cost_per_kg),
+                    }
+                )
+                correction_limits.append(
+                    {
+                        "distributor_id": str(d.id),
+                        "building_id": str(p.building_id),
+                        "day": day,
+                        "max_correction_kg": float(p.max_correction_kg),
+                    }
+                )
+
+    optimizer_payload = {
+        "planning_days": planning_days,
+        "decay_rate": float(scenario.decay_rate),
+        "historical_arrivals": _parse_historical_arrivals(body.historical_orders),
+        "distributors": _distributors_payload(distributors, building_ids),
+        "buildings": _buildings_payload(buildings),
+        "previous_orders": previous_orders,
+        "correction_costs": correction_costs,
+        "correction_limits": correction_limits,
+    }
+
+    try:
+        response = httpx.post(
+            f"{settings.OPTIMIZER_URL}/optimize/correction",
+            json=optimizer_payload,
+            timeout=60.0,
+        )
+        response.raise_for_status()
+        opt_result = response.json()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Optimizer error: {e.response.text}",
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Optimizer unreachable: {e}",
+        )
+
+    # Persist the corrected plan as a new result under the same scenario.
+    # Corrections themselves have no table; they are returned, not stored.
+    result = OptimizationResult(
+        scenario_id=scenario.id,
+        status=opt_result["status"],
+        total_cost_pln=opt_result.get("total_cost_pln"),
+        solver_message=opt_result.get("solver_message"),
+    )
+    db.add(result)
+    db.flush()
+
+    for item in opt_result.get("final_orders", []):
+        db.add(
+            OptimizationOrderItem(
+                result_id=result.id,
+                distributor_id=item["distributor_id"],
+                building_id=item["building_id"],
+                day=item["day"],
+                threshold_level=item.get("threshold_level", 0),
+                quantity_kg=item["quantity_kg"],
+            )
+        )
+    for level in opt_result.get("inventory_levels", []):
+        db.add(
+            OptimizationInventoryLevel(
+                result_id=result.id,
+                building_id=level["building_id"],
+                day=level["day"],
+                level_kg=level["level_kg"],
+            )
+        )
+
+    db.commit()
+
+    return CorrectionResponse(
+        scenario_id=scenario.id,
+        result_id=result.id,
+        status=opt_result["status"],
+        total_cost_pln=opt_result.get("total_cost_pln"),
+        solver_message=opt_result.get("solver_message"),
+        orders=[
+            OrderItemSchema(
+                distributor_id=item["distributor_id"],
+                building_id=item["building_id"],
+                day=item["day"],
+                threshold_level=item.get("threshold_level", 0),
+                quantity_kg=item["quantity_kg"],
+            )
+            for item in opt_result.get("final_orders", [])
+        ],
+        corrections=[
+            CorrectionItem(
+                distributor_id=c["distributor_id"],
+                building_id=c["building_id"],
+                day=c["day"],
+                threshold_level=c.get("threshold_level", 0),
+                type=c["type"],
+                quantity_kg=c["quantity_kg"],
+            )
+            for c in opt_result.get("corrections", [])
+        ],
+        inventory_levels=[
+            InventoryLevel(
+                building_id=level["building_id"],
+                day=level["day"],
+                level_kg=level["level_kg"],
+            )
+            for level in opt_result.get("inventory_levels", [])
+        ],
+    )
 
 
 @router.get("/{result_id}", response_model=OptimizationResponse)

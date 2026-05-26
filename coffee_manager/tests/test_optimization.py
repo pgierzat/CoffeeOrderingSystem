@@ -216,6 +216,140 @@ def test_optimizer_unreachable_returns_503(client, auth_headers):
     assert resp.status_code == 503
 
 
+def _ok_correction_payload(distributor_id, building_id):
+    return {
+        "status": "Optimal",
+        "total_cost_pln": 720.0,
+        "solver_message": "solved",
+        "final_orders": [
+            {
+                "distributor_id": distributor_id,
+                "building_id": building_id,
+                "day": 1,
+                "threshold_level": 0,
+                "quantity_kg": 30,
+            }
+        ],
+        "corrections": [
+            {
+                "distributor_id": distributor_id,
+                "building_id": building_id,
+                "day": 1,
+                "threshold_level": 0,
+                "type": "increase",
+                "quantity_kg": 5,
+            }
+        ],
+        "inventory_levels": [
+            {"building_id": building_id, "day": 1, "level_kg": 120},
+            {"building_id": building_id, "day": 2, "level_kg": 108},
+        ],
+    }
+
+
+def _seed_optimization(client, headers):
+    """Create a building+distributor and run one optimization; return its bodies."""
+    b = _building(client, headers)
+    d = _distributor(client, headers, b["id"])
+    with patch.object(
+        optimization_module.httpx,
+        "post",
+        return_value=_FakeResponse(200, _ok_optimizer_payload(d["id"], b["id"])),
+    ):
+        opt = client.post(
+            "/optimization",
+            json={
+                "name": "scenario-1",
+                "planning_horizon_days": 2,
+                "distributor_ids": [d["id"]],
+                "building_ids": [b["id"]],
+            },
+            headers=headers,
+        ).json()
+    return b, d, opt
+
+
+def test_run_correction_happy_path(client, auth_headers):
+    headers, _ = auth_headers
+    b, d, opt = _seed_optimization(client, headers)
+
+    payload = _ok_correction_payload(d["id"], b["id"])
+    with patch.object(
+        optimization_module.httpx, "post", return_value=_FakeResponse(200, payload)
+    ) as mock_post:
+        resp = client.post(
+            "/optimization/correction",
+            json={"name": "correction-1", "previous_result_id": opt["result_id"]},
+            headers=headers,
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["status"] == "Optimal"
+    assert body["total_cost_pln"] == 720.0
+    assert body["scenario_id"] == opt["scenario_id"]
+    assert body["result_id"] != opt["result_id"]
+    assert len(body["orders"]) == 1
+    assert len(body["corrections"]) == 1
+    assert body["corrections"][0]["type"] == "increase"
+    assert body["corrections"][0]["quantity_kg"] == 5
+
+    # The optimizer was called on the correction endpoint with the right payload.
+    called_url = mock_post.call_args.args[0]
+    sent = mock_post.call_args.kwargs["json"]
+    assert called_url.endswith("/optimize/correction")
+    assert len(sent["previous_orders"]) == 1
+    assert sent["correction_costs"] and sent["correction_limits"]
+    # Costs/limits expanded across the 2-day horizon for the single d↔b pair.
+    assert {c["day"] for c in sent["correction_costs"]} == {1, 2}
+
+    # Persisted under the same scenario: now two results listed.
+    listing = client.get("/optimization", headers=headers).json()
+    assert len(listing) == 2
+
+
+def test_run_correction_unknown_previous_result_404(client, auth_headers):
+    headers, _ = auth_headers
+    resp = client.post(
+        "/optimization/correction",
+        json={"name": "x", "previous_result_id": str(uuid.uuid4())},
+        headers=headers,
+    )
+    assert resp.status_code == 404
+
+
+def test_run_correction_optimizer_http_error_returns_502(client, auth_headers):
+    headers, _ = auth_headers
+    _, _, opt = _seed_optimization(client, headers)
+    with patch.object(
+        optimization_module.httpx,
+        "post",
+        return_value=_FakeResponse(500, {}, text="boom"),
+    ):
+        resp = client.post(
+            "/optimization/correction",
+            json={"name": "x", "previous_result_id": opt["result_id"]},
+            headers=headers,
+        )
+    assert resp.status_code == 502
+
+
+def test_run_correction_optimizer_unreachable_returns_503(client, auth_headers):
+    headers, _ = auth_headers
+    _, _, opt = _seed_optimization(client, headers)
+
+    def _raise(*a, **kw):
+        raise httpx.ConnectError("cannot connect")
+
+    with patch.object(optimization_module.httpx, "post", side_effect=_raise):
+        resp = client.post(
+            "/optimization/correction",
+            json={"name": "x", "previous_result_id": opt["result_id"]},
+            headers=headers,
+        )
+    assert resp.status_code == 503
+
+
 def test_get_optimization_result_404(client, auth_headers):
     headers, _ = auth_headers
     resp = client.get(f"/optimization/{uuid.uuid4()}", headers=headers)

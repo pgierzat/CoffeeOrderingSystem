@@ -48,11 +48,11 @@ class HistoricalArrival(BaseModel):
 
 
 class OptimizationRequest(BaseModel):
-    planning_days: list[int] = Field(min_length=1)
-    distributors: list[DistributorData] = Field(min_length=1)
-    buildings: list[BuildingData] = Field(min_length=1)
+    planning_days: list[int] = Field(..., min_items=1)
+    distributors: list[DistributorData] = Field(..., min_items=1)
+    buildings: list[BuildingData] = Field(..., min_items=1)
     decay_rate: float = Field(ge=0, le=1, default=0.05)
-    historical_arrivals: list[HistoricalArrival] = []
+    historical_arrivals: list[HistoricalArrival] = Field(default_factory=list)
 
 
 class OrderItem(BaseModel):
@@ -85,3 +85,55 @@ class OptimizationResult(BaseModel):
     orders: list[OrderItem] = []
     inventory_levels: list[InventoryLevel] = []
     cost_breakdown: CostBreakdown | None = None
+
+
+class PlannedOrderItem(BaseModel):
+    distributor_id: str
+    building_id: str
+    day: int = Field(ge=1)
+    threshold_level: int = Field(
+        ge=0,
+        description="0 = below first tier, >=1 = discount tier",
+    )
+    quantity_kg: float = Field(ge=0)
+
+
+class CorrectionLimitData(BaseModel):
+    distributor_id: str
+    building_id: str
+    day: int = Field(ge=1)
+    max_correction_kg: float = Field(ge=0)
+
+
+class CorrectionCostData(BaseModel):
+    distributor_id: str
+    building_id: str
+    day: int = Field(ge=1)
+    cost_per_kg: float = Field(ge=0)
+
+
+class CorrectionOptimizationRequest(OptimizationRequest):
+    previous_orders: list[PlannedOrderItem] = []
+    correction_limits: list[CorrectionLimitData] = []
+    correction_costs: list[CorrectionCostData] = []
+
+
+class CorrectionItem(BaseModel):
+    distributor_id: str
+    building_id: str
+    day: int
+    threshold_level: int = Field(
+        ge=0,
+        description="0 = below first tier, >=1 = discount tier",
+    )
+    type: str
+    quantity_kg: float
+
+
+class CorrectionOptimizationResult(BaseModel):
+    status: str
+    total_cost_pln: float | None = None
+    solver_message: str | None = None
+    final_orders: list[OrderItem] = []
+    corrections: list[CorrectionItem] = []
+    inventory_levels: list[InventoryLevel] = []
