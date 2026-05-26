@@ -49,50 +49,149 @@
                 <mxCell id="cls_oi" value="&lt;b&gt;OrderItem&lt;/b&gt;&lt;hr size=&quot;1&quot;&gt;- day: int&lt;br&gt;- threshold_level: int&lt;br&gt;- quantity_kg: Decimal&lt;br&gt;&lt;i&gt;→ distributor_id, building_id&lt;/i&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=12;" parent="1" vertex="1">
                     <mxGeometry x="340" y="720" width="280" height="140" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel1" value="1 ◆── *" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_dist" target="cls_key" edge="1">
+
+                <mxCell id="rel1" value="" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_dist" target="cls_key" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel2" value="1 ◆── *" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_dist" target="cls_dp" edge="1">
+                <mxCell id="rel1s" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel1" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel1t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel1" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="rel2" value="" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_dist" target="cls_dp" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel3" value="1 ── *" style="endArrow=open;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_dp" target="cls_dt" edge="1">
+                <mxCell id="rel2s" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel2" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel2t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel2" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="rel3" value="" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_dp" target="cls_dt" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel4" value="* ── *" style="endArrow=open;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_dist" target="cls_dlv" edge="1">
+                <mxCell id="rel3s" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel3" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel3t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel3" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="rel4" value="" style="endArrow=none;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_dist" target="cls_dlv" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel5" value="* ── *" style="endArrow=open;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_b" target="cls_dlv" edge="1">
+                <mxCell id="rel4s" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel4" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel4t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel4" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="rel5" value="" style="endArrow=none;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_b" target="cls_dlv" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel6" value="1 ◆── *" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_b" target="cls_bdd" edge="1">
+                <mxCell id="rel5s" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel5" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel5t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel5" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="rel6" value="" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_b" target="cls_bdd" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel7" value="* ── * (scenario_distributors)" style="endArrow=open;html=1;fontSize=10;dashed=1;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_scn" target="cls_dist" edge="1">
+                <mxCell id="rel6s" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel6" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel6t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel6" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="rel7" value="&lt;&lt;scenario_distributors&gt;&gt;" style="endArrow=none;html=1;fontSize=10;dashed=1;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_scn" target="cls_dist" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel8" value="* ── * (scenario_buildings)" style="endArrow=open;html=1;fontSize=10;dashed=1;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_scn" target="cls_b" edge="1">
+                <mxCell id="rel7s" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel7" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel7t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel7" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="rel8" value="&lt;&lt;scenario_buildings&gt;&gt;" style="endArrow=none;html=1;fontSize=10;dashed=1;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_scn" target="cls_b" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel9" value="1 ◆── *" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_scn" target="cls_res" edge="1">
+                <mxCell id="rel8s" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel8" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel8t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel8" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="rel9" value="" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_scn" target="cls_res" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel10" value="1 ◆── *" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_res" target="cls_ooi" edge="1">
+                <mxCell id="rel9s" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel9" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel9t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel9" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="rel10" value="" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_res" target="cls_ooi" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel11" value="1 ◆── *" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_res" target="cls_oil" edge="1">
+                <mxCell id="rel10s" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel10" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel10t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel10" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="rel11" value="" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_res" target="cls_oil" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel12" value="1 ── *" style="endArrow=open;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_res" target="cls_ord" edge="1">
+                <mxCell id="rel11s" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel11" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel11t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel11" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="rel12" value="" style="endArrow=open;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_res" target="cls_ord" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel13" value="1 ◆── *" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_ord" target="cls_oi" edge="1">
+                <mxCell id="rel12s" value="0..1" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel12" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel12t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel12" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="rel13" value="" style="endArrow=open;startArrow=diamondThin;startFill=1;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_ord" target="cls_oi" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="rel14" value="0..1 ── *" style="endArrow=open;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_user" target="cls_ord" edge="1">
+                <mxCell id="rel13s" value="1" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel13" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel13t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel13" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="rel14" value="confirmed_by" style="endArrow=open;html=1;fontSize=10;edgeStyle=orthogonalEdgeStyle;rounded=1;" parent="1" source="cls_user" target="cls_ord" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="leg" value="&lt;b&gt;Legend&lt;/b&gt;&lt;hr size=&quot;1&quot;&gt;◆── composition (cascade delete)&lt;br&gt;──── association&lt;br&gt;┄┄┄ association via join table" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacingLeft=10;spacingTop=6;fontSize=11;" parent="1" vertex="1">
-                    <mxGeometry x="60" y="920" width="380" height="120" as="geometry"/>
+                <mxCell id="rel14s" value="0..1" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel14" vertex="1" connectable="0">
+                    <mxGeometry x="-0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+                <mxCell id="rel14t" value="*" style="edgeLabel;html=1;align=center;verticalAlign=middle;fontSize=10;" parent="rel14" vertex="1" connectable="0">
+                    <mxGeometry x="0.85" relative="1" as="geometry"><mxPoint as="offset"/></mxGeometry>
+                </mxCell>
+
+                <mxCell id="leg" value="&lt;b&gt;Legend&lt;/b&gt;&lt;hr size=&quot;1&quot;&gt;◆── composition (cascade delete)&lt;br&gt;──── association&lt;br&gt;┄┄┄ association via join table&lt;br&gt;1 / 0..1 / * — multiplicity at each end" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacingLeft=10;spacingTop=6;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="920" width="380" height="130" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>

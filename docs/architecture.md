@@ -11,7 +11,6 @@ A class diagram of the domain model (data layer) is included as a third UML view
 
 ![Component diagram](diagrams/component-diagram.png)
 
-*Editable source: [`diagrams/component-diagram.drawio`](diagrams/component-diagram.drawio).*
 
 The system consists of three application components and one data component:
 
@@ -65,7 +64,6 @@ Key properties:
 
 ![Deployment diagram](diagrams/deployment-diagram.png)
 
-*Editable source: [`diagrams/deployment-diagram.drawio`](diagrams/deployment-diagram.drawio).*
 
 The system runs on a single **application server (Linux)** with `Docker Engine` plus `docker compose`. Four containers live inside that execution environment:
 
@@ -100,7 +98,6 @@ The manager reads configuration via `coffee_manager.config.settings`. The most i
 
 ![Class diagram](diagrams/class-diagram.png)
 
-*Editable source: [`diagrams/class-diagram.drawio`](diagrams/class-diagram.drawio).*
 
 The diagram shows the persistence entities (SQLAlchemy models from `coffee_manager/models.py`) together with multiplicities and the kind of relationship (composition vs. association). The most important relationships are:
 
@@ -119,17 +116,14 @@ The following behavioural diagrams complete the picture of the system:
 
 ![Combined architecture view](diagrams/architecture.png)
 
-*Source: [`diagrams/architecture.drawio`](diagrams/architecture.drawio).*
 
 ### 4.2. Sequence diagram — `POST /optimization` flow
 
 ![Optimization sequence](diagrams/optimization-workflow.png)
 
-*Source: [`diagrams/optimization-workflow.drawio`](diagrams/optimization-workflow.drawio).*
 
 ### 4.3. Order lifecycle
 
 ![Order lifecycle](diagrams/order-workflow.png)
 
-*Source: [`diagrams/order-workflow.drawio`](diagrams/order-workflow.drawio).*
 
