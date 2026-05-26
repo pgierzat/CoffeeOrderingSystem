@@ -1,289 +1,444 @@
 /* eslint-disable */
 /* tslint:disable */
 // @ts-nocheck
-/*
- * ---------------------------------------------------------------
- * ## THIS FILE WAS GENERATED VIA SWAGGER-TYPESCRIPT-API        ##
- * ##                                                           ##
- * ## AUTHOR: acacode                                           ##
- * ## SOURCE: https://github.com/acacode/swagger-typescript-api ##
- * ---------------------------------------------------------------
- */
 
-export interface ErrorResponse {
-  detail?: string;
+
+/** ApiKeyCreateRequest */
+export interface ApiKeyCreateRequest {
+  /** Label */
+  label: string;
 }
 
-export interface LoginRequest {
-  username: string;
-  /** @format password */
-  password: string;
+/** ApiKeyResponse */
+export interface ApiKeyResponse {
+  /**
+   * Id
+   * @format uuid
+   */
+  id: string;
+  /** Key */
+  key?: string | null;
+  /** Label */
+  label: string;
+  /**
+   * Distributor Id
+   * @format uuid
+   */
+  distributor_id: string;
+  /** Active */
+  active: boolean;
+  /** Revoked At */
+  revoked_at: string | null;
+  /**
+   * Created At
+   * @format date-time
+   */
+  created_at: string;
 }
 
-export interface LoginResponse {
-  /** Bearer token for use in Authorization header */
-  token?: string;
-  /** @format UUID */
-  user_id?: string;
-  role?: "coordinator" | "admin";
-}
-
-export interface DiscountTier {
+/** BuildingCreateRequest */
+export interface BuildingCreateRequest {
+  /** Name */
+  name: string;
+  /** Location */
+  location?: string | null;
   /**
-   * Discount tier number
-   * @min 1
-   */
-  level: number;
-  /**
-   * Quantity threshold [kg]
-   * @format float
-   */
-  quantity_kg: number;
-  /**
-   * Unit price [PLN/kg]
-   * @format float
-   */
-  unit_price: number;
-}
-
-export interface DailyPrice {
-  /**
-   * Planning day
-   * @min 1
-   */
-  day: number;
-  /**
-   * Base price [PLN/kg]
-   * @format float
-   */
-  base_price: number;
-  /**
-   * Availability [kg]
-   * @format float
-   */
-  availability_kg: number;
-  /** Discount tiers applicable on this day */
-  discount_tiers?: DiscountTier[];
-}
-
-export interface DeliveryParams {
-  /** Building ID */
-  building_id: string;
-  /**
-   * Lead time [days]
+   * Max Capacity Kg
    * @min 0
    */
-  lead_time_days: number;
+  max_capacity_kg: number;
   /**
-   * Fixed delivery cost [PLN]
-   * @format float
-   */
-  fixed_cost_pln: number;
-  /**
-   * Correction cost [PLN/kg]
-   * @format float
+   * Initial Inventory Kg
+   * @min 0
    * @default 0
    */
-  correction_cost_per_kg?: number;
+  initial_inventory_kg?: number;
+  /** Daily Demand */
+  daily_demand: DailyDemand[];
+}
+
+/** BuildingResponse */
+export interface BuildingResponse {
   /**
-   * Maximum correction [kg]
-   * @format float
-   * @default 1000000
+   * Id
+   * @format uuid
    */
-  max_correction_kg?: number;
+  id: string;
+  /** Name */
+  name: string;
+  /** Location */
+  location: string | null;
+  /** Max Capacity Kg */
+  max_capacity_kg: number;
+  /** Initial Inventory Kg */
+  initial_inventory_kg: number;
+  /** Current Inventory Kg */
+  current_inventory_kg: number;
+  /** Daily Demand */
+  daily_demand: DailyDemand[];
+  /**
+   * Created At
+   * @format date-time
+   */
+  created_at: string;
+  /**
+   * Updated At
+   * @format date-time
+   */
+  updated_at: string;
 }
 
-export interface DistributorCreateRequest {
-  username: string;
-  /** @format email */
-  contact_email: string;
-  contact_phone: string;
-  daily_prices: DailyPrice[];
-  delivery_params: DeliveryParams[];
+/** CostBreakdown */
+export interface CostBreakdown {
+  /** Purchase Base */
+  purchase_base: number;
+  /** Purchase Discount */
+  purchase_discount: number;
+  /** Fixed Delivery */
+  fixed_delivery: number;
+  /** Total */
+  total: number;
 }
 
-export interface DistributorUpdateRequest {
-  username?: string | null;
-  contact_email?: string | null;
-  contact_phone?: string | null;
-  daily_prices?: DailyPrice[] | null;
-  delivery_params?: DeliveryParams[] | null;
-}
-
-export type DistributorResponse = DistributorCreateRequest & {
-  id?: string;
-  active?: boolean;
-  /** @format date-time */
-  created_at?: string;
-  /** @format date-time */
-  updated_at?: string;
-};
-
+/** DailyDemand */
 export interface DailyDemand {
-  /** @min 1 */
+  /**
+   * Day
+   * @min 1
+   */
   day: number;
   /**
-   * Daily demand [kg]
-   * @format float
+   * Demand Kg
    * @min 0
    */
   demand_kg: number;
 }
 
-export interface BuildingCreateRequest {
-  name: string;
-  location?: string | null;
+/** DailyPrice */
+export interface DailyPrice {
   /**
-   * Storage capacity [kg]
-   * @format float
+   * Day
+   * @min 1
    */
-  max_capacity_kg: number;
+  day: number;
   /**
-   * Initial inventory level [kg]
-   * @format float
-   * @default 0
+   * Base Price
+   * @min 0
    */
-  initial_inventory_kg?: number;
-  daily_demand: DailyDemand[];
+  base_price: number;
+  /**
+   * Availability Kg
+   * @min 0
+   */
+  availability_kg: number;
+  /**
+   * Discount Tiers
+   * @default []
+   */
+  discount_tiers?: DiscountTier[];
 }
 
-export type BuildingResponse = BuildingCreateRequest & {
-  id?: string;
+/** DeliveryParams */
+export interface DeliveryParams {
+  /** Building Id */
+  building_id: string;
   /**
-   * Current inventory level [kg]
-   * @format float
+   * Lead Time Days
+   * @min 0
    */
-  current_inventory_kg?: number;
-  /** @format date-time */
-  created_at?: string;
-  /** @format date-time */
-  updated_at?: string;
-};
+  lead_time_days: number;
+  /**
+   * Fixed Cost Pln
+   * @min 0
+   */
+  fixed_cost_pln: number;
+  /**
+   * Correction Cost Per Kg
+   * @min 0
+   * @default 0
+   */
+  correction_cost_per_kg?: number;
+  /**
+   * Max Correction Kg
+   * @min 0
+   * @default 1000000
+   */
+  max_correction_kg?: number;
+}
 
+/** DiscountTier */
+export interface DiscountTier {
+  /**
+   * Level
+   * @min 1
+   */
+  level: number;
+  /**
+   * Quantity Kg
+   * @min 0
+   */
+  quantity_kg: number;
+  /**
+   * Unit Price
+   * @min 0
+   */
+  unit_price: number;
+}
+
+/** DistributorCreateRequest */
+export interface DistributorCreateRequest {
+  /** Username */
+  username: string;
+  /** Contact Email */
+  contact_email: string;
+  /** Contact Phone */
+  contact_phone: string;
+  /** Daily Prices */
+  daily_prices: DailyPrice[];
+  /** Delivery Params */
+  delivery_params: DeliveryParams[];
+}
+
+/** DistributorResponse */
+export interface DistributorResponse {
+  /**
+   * Id
+   * @format uuid
+   */
+  id: string;
+  /** Username */
+  username: string;
+  /** Contact Email */
+  contact_email: string;
+  /** Contact Phone */
+  contact_phone: string;
+  /** Active */
+  active: boolean;
+  /** Daily Prices */
+  daily_prices: DailyPrice[];
+  /** Delivery Params */
+  delivery_params: DeliveryParams[];
+  /**
+   * Created At
+   * @format date-time
+   */
+  created_at: string;
+  /**
+   * Updated At
+   * @format date-time
+   */
+  updated_at: string;
+}
+
+/** DistributorUpdateRequest */
+export interface DistributorUpdateRequest {
+  /** Username */
+  username?: string | null;
+  /** Contact Email */
+  contact_email?: string | null;
+  /** Contact Phone */
+  contact_phone?: string | null;
+  /** Daily Prices */
+  daily_prices?: DailyPrice[] | null;
+  /** Delivery Params */
+  delivery_params?: DeliveryParams[] | null;
+}
+
+/** HTTPValidationError */
+export interface HTTPValidationError {
+  /** Detail */
+  detail?: ValidationError[];
+}
+
+/** InventoryLevel */
+export interface InventoryLevel {
+  /**
+   * Building Id
+   * @format uuid
+   */
+  building_id: string;
+  /** Day */
+  day: number;
+  /** Level Kg */
+  level_kg: number;
+}
+
+/** InventoryStatus */
+export interface InventoryStatus {
+  /**
+   * Building Id
+   * @format uuid
+   */
+  building_id: string;
+  /** Building Name */
+  building_name: string;
+  /** Current Inventory Kg */
+  current_inventory_kg: number;
+  /** Max Capacity Kg */
+  max_capacity_kg: number;
+  /** Fill Percent */
+  fill_percent: number;
+}
+
+/** LoginRequest */
+export interface LoginRequest {
+  /** Username */
+  username: string;
+  /** Password */
+  password: string;
+}
+
+/** LoginResponse */
+export interface LoginResponse {
+  /** Token */
+  token: string;
+  /**
+   * User Id
+   * @format uuid
+   */
+  user_id: string;
+  /** Role */
+  role: string;
+}
+
+/** OptimizationResponse */
+export interface OptimizationResponse {
+  /**
+   * Scenario Id
+   * @format uuid
+   */
+  scenario_id: string;
+  /**
+   * Result Id
+   * @format uuid
+   */
+  result_id: string;
+  /** Status */
+  status: string;
+  /** Total Cost Pln */
+  total_cost_pln: number | null;
+  /** Solver Message */
+  solver_message: string | null;
+  /** Orders */
+  orders: OrderItem[];
+  /** Inventory Levels */
+  inventory_levels: InventoryLevel[];
+  cost_breakdown: CostBreakdown | null;
+}
+
+/** OrderItem */
+export interface OrderItem {
+  /**
+   * Distributor Id
+   * @format uuid
+   */
+  distributor_id: string;
+  /**
+   * Building Id
+   * @format uuid
+   */
+  building_id: string;
+  /**
+   * Day
+   * @min 1
+   */
+  day: number;
+  /**
+   * Threshold Level
+   * @min 0
+   */
+  threshold_level: number;
+  /**
+   * Quantity Kg
+   * @min 0
+   */
+  quantity_kg: number;
+}
+
+/** OrderRecord */
+export interface OrderRecord {
+  /**
+   * Id
+   * @format uuid
+   */
+  id: string;
+  /**
+   * Result Id
+   * @format uuid
+   */
+  result_id: string;
+  /**
+   * Scenario Id
+   * @format uuid
+   */
+  scenario_id: string;
+  /** Orders */
+  orders: OrderItem[];
+  /** Total Cost Pln */
+  total_cost_pln: number | null;
+  /** Confirmed By */
+  confirmed_by: string | null;
+  /** Status */
+  status: string;
+  /**
+   * Created At
+   * @format date-time
+   */
+  created_at: string;
+  /**
+   * Updated At
+   * @format date-time
+   */
+  updated_at: string;
+}
+
+/** OrderStatusUpdate */
+export interface OrderStatusUpdate {
+  /**
+   * Status
+   * @pattern ^(confirmed|pending|cancelled)$
+   */
+  status: string;
+}
+
+/** ScenarioCreateRequest */
 export interface ScenarioCreateRequest {
+  /** Name */
   name: string;
   /**
-   * Planning horizon [days]
+   * Planning Horizon Days
    * @min 1
    * @max 30
    * @default 7
    */
   planning_horizon_days?: number;
-  /** List of distributor IDs */
+  /** Distributor Ids */
   distributor_ids: string[];
-  /** List of building IDs */
+  /** Building Ids */
   building_ids: string[];
   /**
-   * Daily coffee decay rate
-   * @format float
+   * Decay Rate
    * @min 0
    * @max 1
    * @default 0.05
    */
   decay_rate?: number;
-  /** Historical orders in progress */
-  historical_orders?: Record<string, number> | null;
+  /** Historical Orders */
+  historical_orders?: Record<string, any> | null;
 }
 
-export interface OrderItem {
-  /** @format uuid */
-  distributor_id?: string;
-  /** @format uuid */
-  building_id?: string;
-  /** @min 1 */
-  day?: number;
-  /**
-   * 0 = no tier, >= 1 = discount tier number
-   * @min 0
-   */
-  threshold_level?: number;
-  /**
-   * @format float
-   * @min 0
-   */
-  quantity_kg?: number;
-}
-
-export interface InventoryLevel {
-  building_id?: string;
-  day?: number;
-  /** @format float */
-  level_kg?: number;
-}
-
-export interface OptimizationResponse {
-  /** @format UUID */
-  scenario_id?: string;
-  /** @format UUID */
-  result_id?: string;
-  /** AMPL solver status */
-  status?: "Optimal" | "Infeasible" | "Unbounded" | "Not Solved";
-  /**
-   * Total cost of optimal solution [PLN]
-   * @format float
-   */
-  total_cost_pln?: number;
-  /** Raw solver status message */
-  solver_message?: string | null;
-  /** Order schedule */
-  orders?: OrderItem[];
-  /** Projected inventory levels */
-  inventory_levels?: InventoryLevel[];
-  cost_breakdown?: {
-    purchase_base?: number;
-    purchase_discount?: number;
-    fixed_delivery?: number;
-    total?: number;
-  } | null;
-}
-
-export interface OrderRecord {
-  id?: string;
-  result_id?: string;
-  scenario_id?: string;
-  orders?: OrderItem[];
-  total_cost_pln?: number;
-  /** @format UUID */
-  confirmed_by?: string;
-  status?: "confirmed" | "pending" | "cancelled";
-  /** @format date-time */
-  created_at?: string;
-  /** @format date-time */
-  updated_at?: string;
-}
-
-export interface InventoryStatus {
-  /** @format UUID */
-  building_id?: string;
-  building_name?: string;
-  /** @format float */
-  current_inventory_kg?: number;
-  /** @format float */
-  max_capacity_kg?: number;
-  /**
-   * Warehouse fill level [%]
-   * @format float
-   */
-  fill_percent?: number;
-}
-
-export interface ApiKeyCreateRequest {
-  /** Descriptive key label */
-  label: string;
-}
-
-export interface ApiKeyResponse {
-  id?: string;
-  /** API key (format: cof_...) — only present on creation */
-  key?: string;
-  label?: string;
-  /** @format UUID */
-  distributor_id?: string;
-  active?: boolean;
-  /** @format date-time */
-  revoked_at?: string | null;
-  /** @format date-time */
-  created_at?: string;
+/** ValidationError */
+export interface ValidationError {
+  /** Location */
+  loc: (string | number)[];
+  /** Message */
+  msg: string;
+  /** Error Type */
+  type: string;
+  /** Input */
+  input?: any;
+  /** Context */
+  ctx?: object;
 }
 
 import type {
@@ -462,9 +617,8 @@ export class HttpClient<SecurityDataType = unknown> {
 }
 
 /**
- * @title Coffee Supply Management System API
+ * @title Coffee Supply Management API
  * @version 1.0.0
- * @contact Team 67 - PZSP2 <coffee-system@pw.edu.pl>
  */
 export class Api<
   SecurityDataType extends unknown,
@@ -474,12 +628,12 @@ export class Api<
      * No description
      *
      * @tags Authentication
-     * @name Login
-     * @summary Log in as coordinator
+     * @name LoginAuthLoginPost
+     * @summary Login
      * @request POST:/auth/login
      */
-    login: (data: LoginRequest, params: RequestParams = {}) =>
-      this.request<LoginResponse, ErrorResponse>({
+    loginAuthLoginPost: (data: LoginRequest, params: RequestParams = {}) =>
+      this.request<LoginResponse, HTTPValidationError>({
         path: `/auth/login`,
         method: "POST",
         body: data,
@@ -492,12 +646,15 @@ export class Api<
      * No description
      *
      * @tags Authentication
-     * @name Register
-     * @summary Register a new coordinator
+     * @name RegisterAuthRegisterPost
+     * @summary Register
      * @request POST:/auth/register
      */
-    register: (data: LoginRequest, params: RequestParams = {}) =>
-      this.request<LoginResponse, void>({
+    registerAuthRegisterPost: (
+      data: LoginRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<LoginResponse, HTTPValidationError>({
         path: `/auth/register`,
         method: "POST",
         body: data,
@@ -511,13 +668,13 @@ export class Api<
      * No description
      *
      * @tags Distributors
-     * @name ListDistributors
-     * @summary List distributors
+     * @name ListDistributorsDistributorsGet
+     * @summary List Distributors
      * @request GET:/distributors
      * @secure
      */
-    listDistributors: (params: RequestParams = {}) =>
-      this.request<DistributorResponse[], ErrorResponse>({
+    listDistributorsDistributorsGet: (params: RequestParams = {}) =>
+      this.request<DistributorResponse[], any>({
         path: `/distributors`,
         method: "GET",
         secure: true,
@@ -529,16 +686,16 @@ export class Api<
      * No description
      *
      * @tags Distributors
-     * @name CreateDistributor
-     * @summary Add distributor
+     * @name CreateDistributorDistributorsPost
+     * @summary Create Distributor
      * @request POST:/distributors
      * @secure
      */
-    createDistributor: (
+    createDistributorDistributorsPost: (
       data: DistributorCreateRequest,
       params: RequestParams = {},
     ) =>
-      this.request<DistributorResponse, any>({
+      this.request<DistributorResponse, HTTPValidationError>({
         path: `/distributors`,
         method: "POST",
         body: data,
@@ -551,15 +708,15 @@ export class Api<
     /**
      * No description
      *
-     * @tags Distributors
-     * @name GetDistributor
-     * @summary Distributor details
-     * @request GET:/distributors/{distributor_id}
+     * @tags Distributors, Distributors - Self Service
+     * @name GetOwnPricesDistributorsSelfPricesGet
+     * @summary Get Own Prices
+     * @request GET:/distributors/self/prices
      * @secure
      */
-    getDistributor: (distributorId: string, params: RequestParams = {}) =>
-      this.request<DistributorResponse, ErrorResponse>({
-        path: `/distributors/${distributorId}`,
+    getOwnPricesDistributorsSelfPricesGet: (params: RequestParams = {}) =>
+      this.request<DistributorResponse, any>({
+        path: `/distributors/self/prices`,
         method: "GET",
         secure: true,
         format: "json",
@@ -569,58 +726,17 @@ export class Api<
     /**
      * No description
      *
-     * @tags Distributors
-     * @name UpdateDistributor
-     * @summary Update distributor
-     * @request PUT:/distributors/{distributor_id}
-     * @secure
-     */
-    updateDistributor: (
-      distributorId: string,
-      data: DistributorUpdateRequest,
-      params: RequestParams = {},
-    ) =>
-      this.request<DistributorResponse, ErrorResponse>({
-        path: `/distributors/${distributorId}`,
-        method: "PUT",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Distributors
-     * @name DeleteDistributor
-     * @summary Delete distributor
-     * @request DELETE:/distributors/{distributor_id}
-     * @secure
-     */
-    deleteDistributor: (distributorId: string, params: RequestParams = {}) =>
-      this.request<void, ErrorResponse>({
-        path: `/distributors/${distributorId}`,
-        method: "DELETE",
-        secure: true,
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Distributors - Self Service
-     * @name UpdateOwnPrices
-     * @summary Update own price list (distributor via API key)
+     * @tags Distributors, Distributors - Self Service
+     * @name UpdateOwnPricesDistributorsSelfPricesPut
+     * @summary Update Own Prices
      * @request PUT:/distributors/self/prices
      * @secure
      */
-    updateOwnPrices: (
+    updateOwnPricesDistributorsSelfPricesPut: (
       data: DistributorUpdateRequest,
       params: RequestParams = {},
     ) =>
-      this.request<DistributorResponse, ErrorResponse>({
+      this.request<DistributorResponse, HTTPValidationError>({
         path: `/distributors/self/prices`,
         method: "PUT",
         body: data,
@@ -633,14 +749,102 @@ export class Api<
     /**
      * No description
      *
+     * @tags Distributors, Distributors - Self Service
+     * @name GetOwnAvailableBuildingsDistributorsSelfAvailableBuildingsGet
+     * @summary Get Own Available Buildings
+     * @request GET:/distributors/self/available-buildings
+     * @secure
+     */
+    getOwnAvailableBuildingsDistributorsSelfAvailableBuildingsGet: (
+      params: RequestParams = {},
+    ) =>
+      this.request<BuildingResponse[], any>({
+        path: `/distributors/self/available-buildings`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Distributors
+     * @name GetDistributorDistributorsDistributorIdGet
+     * @summary Get Distributor
+     * @request GET:/distributors/{distributor_id}
+     * @secure
+     */
+    getDistributorDistributorsDistributorIdGet: (
+      distributorId: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<DistributorResponse, HTTPValidationError>({
+        path: `/distributors/${distributorId}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Distributors
+     * @name UpdateDistributorDistributorsDistributorIdPut
+     * @summary Update Distributor
+     * @request PUT:/distributors/{distributor_id}
+     * @secure
+     */
+    updateDistributorDistributorsDistributorIdPut: (
+      distributorId: string,
+      data: DistributorUpdateRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<DistributorResponse, HTTPValidationError>({
+        path: `/distributors/${distributorId}`,
+        method: "PUT",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Distributors
+     * @name DeleteDistributorDistributorsDistributorIdDelete
+     * @summary Delete Distributor
+     * @request DELETE:/distributors/{distributor_id}
+     * @secure
+     */
+    deleteDistributorDistributorsDistributorIdDelete: (
+      distributorId: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, HTTPValidationError>({
+        path: `/distributors/${distributorId}`,
+        method: "DELETE",
+        secure: true,
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
      * @tags API Keys
-     * @name ListApiKeys
-     * @summary List distributor API keys
+     * @name ListApiKeysDistributorsDistributorIdApiKeysGet
+     * @summary List Api Keys
      * @request GET:/distributors/{distributor_id}/api-keys
      * @secure
      */
-    listApiKeys: (distributorId: string, params: RequestParams = {}) =>
-      this.request<ApiKeyResponse[], any>({
+    listApiKeysDistributorsDistributorIdApiKeysGet: (
+      distributorId: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<ApiKeyResponse[], HTTPValidationError>({
         path: `/distributors/${distributorId}/api-keys`,
         method: "GET",
         secure: true,
@@ -652,17 +856,17 @@ export class Api<
      * No description
      *
      * @tags API Keys
-     * @name CreateApiKey
-     * @summary Generate API key for distributor
+     * @name CreateApiKeyDistributorsDistributorIdApiKeysPost
+     * @summary Create Api Key
      * @request POST:/distributors/{distributor_id}/api-keys
      * @secure
      */
-    createApiKey: (
+    createApiKeyDistributorsDistributorIdApiKeysPost: (
       distributorId: string,
       data: ApiKeyCreateRequest,
       params: RequestParams = {},
     ) =>
-      this.request<ApiKeyResponse, any>({
+      this.request<ApiKeyResponse, HTTPValidationError>({
         path: `/distributors/${distributorId}/api-keys`,
         method: "POST",
         body: data,
@@ -677,13 +881,16 @@ export class Api<
      * No description
      *
      * @tags API Keys
-     * @name RevokeApiKey
-     * @summary Revoke API key
+     * @name RevokeApiKeyApiKeysKeyIdDelete
+     * @summary Revoke Api Key
      * @request DELETE:/api-keys/{key_id}
      * @secure
      */
-    revokeApiKey: (keyId: string, params: RequestParams = {}) =>
-      this.request<void, ErrorResponse>({
+    revokeApiKeyApiKeysKeyIdDelete: (
+      keyId: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, HTTPValidationError>({
         path: `/api-keys/${keyId}`,
         method: "DELETE",
         secure: true,
@@ -695,12 +902,12 @@ export class Api<
      * No description
      *
      * @tags Buildings
-     * @name ListBuildings
-     * @summary List buildings
+     * @name ListBuildingsBuildingsGet
+     * @summary List Buildings
      * @request GET:/buildings
      * @secure
      */
-    listBuildings: (params: RequestParams = {}) =>
+    listBuildingsBuildingsGet: (params: RequestParams = {}) =>
       this.request<BuildingResponse[], any>({
         path: `/buildings`,
         method: "GET",
@@ -713,13 +920,16 @@ export class Api<
      * No description
      *
      * @tags Buildings
-     * @name CreateBuilding
-     * @summary Add building
+     * @name CreateBuildingBuildingsPost
+     * @summary Create Building
      * @request POST:/buildings
      * @secure
      */
-    createBuilding: (data: BuildingCreateRequest, params: RequestParams = {}) =>
-      this.request<BuildingResponse, any>({
+    createBuildingBuildingsPost: (
+      data: BuildingCreateRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<BuildingResponse, HTTPValidationError>({
         path: `/buildings`,
         method: "POST",
         body: data,
@@ -733,13 +943,16 @@ export class Api<
      * No description
      *
      * @tags Buildings
-     * @name GetBuilding
-     * @summary Building details
+     * @name GetBuildingBuildingsBuildingIdGet
+     * @summary Get Building
      * @request GET:/buildings/{building_id}
      * @secure
      */
-    getBuilding: (buildingId: string, params: RequestParams = {}) =>
-      this.request<BuildingResponse, ErrorResponse>({
+    getBuildingBuildingsBuildingIdGet: (
+      buildingId: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<BuildingResponse, HTTPValidationError>({
         path: `/buildings/${buildingId}`,
         method: "GET",
         secure: true,
@@ -751,17 +964,17 @@ export class Api<
      * No description
      *
      * @tags Buildings
-     * @name UpdateBuilding
-     * @summary Update building
+     * @name UpdateBuildingBuildingsBuildingIdPut
+     * @summary Update Building
      * @request PUT:/buildings/{building_id}
      * @secure
      */
-    updateBuilding: (
+    updateBuildingBuildingsBuildingIdPut: (
       buildingId: string,
       data: BuildingCreateRequest,
       params: RequestParams = {},
     ) =>
-      this.request<BuildingResponse, any>({
+      this.request<BuildingResponse, HTTPValidationError>({
         path: `/buildings/${buildingId}`,
         method: "PUT",
         body: data,
@@ -775,170 +988,19 @@ export class Api<
      * No description
      *
      * @tags Buildings
-     * @name DeleteBuilding
-     * @summary Delete building
+     * @name DeleteBuildingBuildingsBuildingIdDelete
+     * @summary Delete Building
      * @request DELETE:/buildings/{building_id}
      * @secure
      */
-    deleteBuilding: (buildingId: string, params: RequestParams = {}) =>
-      this.request<void, any>({
+    deleteBuildingBuildingsBuildingIdDelete: (
+      buildingId: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<void, HTTPValidationError>({
         path: `/buildings/${buildingId}`,
         method: "DELETE",
         secure: true,
-        ...params,
-      }),
-  };
-  optimization = {
-    /**
-     * No description
-     *
-     * @tags Optimization
-     * @name ListOptimizations
-     * @summary Optimization history
-     * @request GET:/optimization
-     * @secure
-     */
-    listOptimizations: (params: RequestParams = {}) =>
-      this.request<OptimizationResponse[], any>({
-        path: `/optimization`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Optimization
-     * @name RunOptimization
-     * @summary Run optimization
-     * @request POST:/optimization
-     * @secure
-     */
-    runOptimization: (
-      data: ScenarioCreateRequest,
-      params: RequestParams = {},
-    ) =>
-      this.request<OptimizationResponse, any>({
-        path: `/optimization`,
-        method: "POST",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Optimization
-     * @name GetOptimizationResult
-     * @summary Get optimization result details
-     * @request GET:/optimization/{result_id}
-     * @secure
-     */
-    getOptimizationResult: (resultId: string, params: RequestParams = {}) =>
-      this.request<OptimizationResponse, ErrorResponse>({
-        path: `/optimization/${resultId}`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-  };
-  orders = {
-    /**
-     * No description
-     *
-     * @tags Orders
-     * @name ListOrders
-     * @summary Order history
-     * @request GET:/orders
-     * @secure
-     */
-    listOrders: (
-      query?: {
-        status?: "confirmed" | "pending" | "cancelled";
-      },
-      params: RequestParams = {},
-    ) =>
-      this.request<OrderRecord[], any>({
-        path: `/orders`,
-        method: "GET",
-        query: query,
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Orders
-     * @name ConfirmOrders
-     * @summary Confirm order schedule
-     * @request POST:/orders
-     * @secure
-     */
-    confirmOrders: (
-      query: {
-        /** Optimization result ID to confirm */
-        result_id: string;
-      },
-      params: RequestParams = {},
-    ) =>
-      this.request<OrderRecord, any>({
-        path: `/orders`,
-        method: "POST",
-        query: query,
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Orders
-     * @name GetOrder
-     * @summary Get order details
-     * @request GET:/orders/{order_id}
-     * @secure
-     */
-    getOrder: (orderId: string, params: RequestParams = {}) =>
-      this.request<OrderRecord, ErrorResponse>({
-        path: `/orders/${orderId}`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * No description
-     *
-     * @tags Orders
-     * @name UpdateOrderStatus
-     * @summary Update order status
-     * @request PATCH:/orders/{order_id}/status
-     * @secure
-     */
-    updateOrderStatus: (
-      orderId: string,
-      data: {
-        status: "confirmed" | "pending" | "cancelled";
-      },
-      params: RequestParams = {},
-    ) =>
-      this.request<OrderRecord, ErrorResponse>({
-        path: `/orders/${orderId}/status`,
-        method: "PATCH",
-        body: data,
-        secure: true,
-        type: ContentType.Json,
-        format: "json",
         ...params,
       }),
   };
@@ -947,12 +1009,12 @@ export class Api<
      * No description
      *
      * @tags Inventory
-     * @name GetInventory
-     * @summary Current inventory levels
+     * @name GetInventoryInventoryGet
+     * @summary Get Inventory
      * @request GET:/inventory
      * @secure
      */
-    getInventory: (params: RequestParams = {}) =>
+    getInventoryInventoryGet: (params: RequestParams = {}) =>
       this.request<InventoryStatus[], any>({
         path: `/inventory`,
         method: "GET",
@@ -965,32 +1027,179 @@ export class Api<
      * No description
      *
      * @tags Inventory
-     * @name UpdateInventory
-     * @summary Update building inventory
+     * @name UpdateInventoryInventoryBuildingIdPut
+     * @summary Update Inventory
      * @request PUT:/inventory/{building_id}
      * @secure
      */
-    updateInventory: (
+    updateInventoryInventoryBuildingIdPut: (
       buildingId: string,
       query: {
-        /**
-         * @format float
-         * @min 0
-         */
+        /** Current Kg */
         current_kg: number;
       },
       params: RequestParams = {},
     ) =>
-      this.request<
-        {
-          building_id?: string;
-          current_inventory_kg?: number;
-        },
-        any
-      >({
+      this.request<any, HTTPValidationError>({
         path: `/inventory/${buildingId}`,
         method: "PUT",
         query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+  };
+  orders = {
+    /**
+     * No description
+     *
+     * @tags Orders
+     * @name ListOrdersOrdersGet
+     * @summary List Orders
+     * @request GET:/orders
+     * @secure
+     */
+    listOrdersOrdersGet: (
+      query?: {
+        /** Status */
+        status?: string | null;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<OrderRecord[], HTTPValidationError>({
+        path: `/orders`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Orders
+     * @name ConfirmOrdersOrdersPost
+     * @summary Confirm Orders
+     * @request POST:/orders
+     * @secure
+     */
+    confirmOrdersOrdersPost: (
+      query: {
+        /** Result Id */
+        result_id: string;
+      },
+      params: RequestParams = {},
+    ) =>
+      this.request<OrderRecord, HTTPValidationError>({
+        path: `/orders`,
+        method: "POST",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Orders
+     * @name GetOrderOrdersOrderIdGet
+     * @summary Get Order
+     * @request GET:/orders/{order_id}
+     * @secure
+     */
+    getOrderOrdersOrderIdGet: (orderId: string, params: RequestParams = {}) =>
+      this.request<OrderRecord, HTTPValidationError>({
+        path: `/orders/${orderId}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Orders
+     * @name UpdateOrderStatusOrdersOrderIdStatusPatch
+     * @summary Update Order Status
+     * @request PATCH:/orders/{order_id}/status
+     * @secure
+     */
+    updateOrderStatusOrdersOrderIdStatusPatch: (
+      orderId: string,
+      data: OrderStatusUpdate,
+      params: RequestParams = {},
+    ) =>
+      this.request<OrderRecord, HTTPValidationError>({
+        path: `/orders/${orderId}/status`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+  };
+  optimization = {
+    /**
+     * No description
+     *
+     * @tags Optimization
+     * @name ListOptimizationsOptimizationGet
+     * @summary List Optimizations
+     * @request GET:/optimization
+     * @secure
+     */
+    listOptimizationsOptimizationGet: (params: RequestParams = {}) =>
+      this.request<OptimizationResponse[], any>({
+        path: `/optimization`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Optimization
+     * @name RunOptimizationOptimizationPost
+     * @summary Run Optimization
+     * @request POST:/optimization
+     * @secure
+     */
+    runOptimizationOptimizationPost: (
+      data: ScenarioCreateRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<OptimizationResponse, HTTPValidationError>({
+        path: `/optimization`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Optimization
+     * @name GetOptimizationResultOptimizationResultIdGet
+     * @summary Get Optimization Result
+     * @request GET:/optimization/{result_id}
+     * @secure
+     */
+    getOptimizationResultOptimizationResultIdGet: (
+      resultId: string,
+      params: RequestParams = {},
+    ) =>
+      this.request<OptimizationResponse, HTTPValidationError>({
+        path: `/optimization/${resultId}`,
+        method: "GET",
         secure: true,
         format: "json",
         ...params,
@@ -1001,22 +1210,12 @@ export class Api<
      * No description
      *
      * @tags System
-     * @name HealthCheck
-     * @summary Health check
+     * @name HealthCheckHealthGet
+     * @summary Health Check
      * @request GET:/health
      */
-    healthCheck: (params: RequestParams = {}) =>
-      this.request<
-        {
-          /** @example "ok" */
-          status?: string;
-          /** @example "coffee-supply-api" */
-          service?: string;
-          /** @example "1.0.0" */
-          version?: string;
-        },
-        any
-      >({
+    healthCheckHealthGet: (params: RequestParams = {}) =>
+      this.request<any, any>({
         path: `/health`,
         method: "GET",
         format: "json",

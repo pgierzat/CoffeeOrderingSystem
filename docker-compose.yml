@@ -35,6 +35,7 @@ services:
       - ./coffee_manager/src:/app/src
       - ./coffee_manager/pyproject.toml:/app/pyproject.toml
       - ./coffee_manager/poetry.lock:/app/poetry.lock
+    command: ["uvicorn", "coffee_manager.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
   optimizer:
     build:

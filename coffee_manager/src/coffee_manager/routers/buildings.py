@@ -6,7 +6,14 @@ from sqlalchemy.orm import Session, selectinload
 
 from coffee_manager.auth import get_current_user
 from coffee_manager.database import get_db
-from coffee_manager.models import Building, BuildingDailyDemand, User
+from coffee_manager.models import (
+    Building,
+    BuildingDailyDemand,
+    OptimizationInventoryLevel,
+    OptimizationOrderItem,
+    OrderItem,
+    User,
+)
 from coffee_manager.schemas import BuildingCreateRequest, BuildingResponse, DailyDemand
 
 router = APIRouter(prefix="/buildings", tags=["Buildings"])
@@ -128,5 +135,8 @@ def delete_building(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Building not found"
         )
+    db.query(OrderItem).filter(OrderItem.building_id == building_id).delete(synchronize_session=False)
+    db.query(OptimizationOrderItem).filter(OptimizationOrderItem.building_id == building_id).delete(synchronize_session=False)
+    db.query(OptimizationInventoryLevel).filter(OptimizationInventoryLevel.building_id == building_id).delete(synchronize_session=False)
     db.delete(building)
     db.commit()
