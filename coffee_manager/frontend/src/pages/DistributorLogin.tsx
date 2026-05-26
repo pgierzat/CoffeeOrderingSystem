@@ -2,8 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Text, Button, TextInput } from '@tremor/react'
 
-const VALID_KEY = 'cof_brzeskakawa_2024_x9k2'
-
 export default function DistributorLogin() {
   const [apiKey, setApiKey] = useState('')
   const [error, setError] = useState('')
@@ -11,12 +9,16 @@ export default function DistributorLogin() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    if (apiKey.trim() === VALID_KEY) {
-      localStorage.setItem('dist_auth', apiKey)
-      navigate('/distributor')
-    } else {
-      setError('Invalid API key')
+
+    const trimmedApiKey = apiKey.trim()
+
+    if (!trimmedApiKey) {
+      setError('API key is required')
+      return
     }
+
+    localStorage.setItem('dist_auth', trimmedApiKey)
+    navigate('/distributor')
   }
 
   return (
@@ -38,20 +40,17 @@ export default function DistributorLogin() {
                 API Key
               </label>
               <TextInput
-                placeholder="cof_..."
+                placeholder="Enter API key"
                 value={apiKey}
-                onChange={e => setApiKey(e.target.value)}
+                onChange={e => {
+                  setApiKey(e.target.value)
+                  setError('')
+                }}
               />
             </div>
             {error && <Text className="text-red-500 text-sm">{error}</Text>}
             <Button type="submit" className="w-full">Sign in</Button>
           </form>
-          <p className="text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle text-center mt-4">
-            Demo key:{' '}
-            <code className="bg-tremor-background-muted dark:bg-dark-tremor-background-muted px-1 rounded text-xs">
-              cof_brzeskakawa_2024_x9k2
-            </code>
-          </p>
         </Card>
         <div className="text-center mt-4">
           <a
