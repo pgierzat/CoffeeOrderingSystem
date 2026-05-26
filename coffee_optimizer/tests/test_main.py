@@ -423,6 +423,233 @@ class TestResultParsing:
         mock_ampl.get_value.return_value = "limit"
         MockAMPL.return_value = mock_ampl
 
-        result = run_optimization(base_request)
+        result = solve_coffee_optimization(self._input())
 
-        assert result.status == "Not Solved"
+        assert result["status"] == "Not Solved"
+
+
+# ---------------------------------------------------------------------------
+# Correction model tests
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def correction_base_data():
+    """
+    Minimalny przypadek korekty:
+    wcześniej planowano 20 kg dziennie,
+    nowy popyt wynosi 25 kg dziennie,
+    więc model powinien dodać korektę +5 kg dziennie.
+    """
+    return {
+        "T": [1, 2, 3],
+        "D": ["D0"],
+        "B": ["B0"],
+        "L": [1, 2],
+        "alpha": 0.0,
+
+        "V_max": {"B0": 200},
+        "Q": {1: 30, 2: 60},
+
+        "I0": {"B0": 0.0},
+
+        "P0": {
+            ("D0", 1): 10.0,
+            ("D0", 2): 10.0,
+            ("D0", 3): 10.0,
+        },
+
+        "P": {
+            ("D0", 1, 1): 10.0,
+            ("D0", 1, 2): 10.0,
+            ("D0", 2, 1): 10.0,
+            ("D0", 2, 2): 10.0,
+            ("D0", 3, 1): 10.0,
+            ("D0", 3, 2): 10.0,
+        },
+
+        "C_fix": {
+            ("D0", "B0"): 0.0,
+        },
+
+        "Demand": {
+            ("B0", 1): 25.0,
+            ("B0", 2): 25.0,
+            ("B0", 3): 25.0,
+        },
+
+        "S_avail": {
+            ("D0", 1): 100.0,
+            ("D0", 2): 100.0,
+            ("D0", 3): 100.0,
+        },
+
+        "LT": {
+            ("D0", "B0"): 0,
+        },
+
+        # wcześniej zaplanowano 20 kg dziennie
+        "x0_prev": {
+            ("D0", "B0", 1): 20.0,
+            ("D0", "B0", 2): 20.0,
+            ("D0", "B0", 3): 20.0,
+        },
+
+        "x_prev": {},
+
+        # koszt korekty 1 zł/kg
+        "K_corr": {
+            ("D0", "B0", 1): 1.0,
+            ("D0", "B0", 2): 1.0,
+            ("D0", "B0", 3): 1.0,
+        },
+
+        # maksymalnie można skorygować 10 kg dziennie
+        "R_max": {
+            ("D0", "B0", 1): 10.0,
+            ("D0", "B0", 2): 10.0,
+            ("D0", "B0", 3): 10.0,
+        },
+    }
+
+
+class TestCoffeeCorrection:
+    def test_correction_returns_optimal_status(self, correction_base_data):
+        result = solve_coffee_correction(correction_base_data)
+
+        assert result["status"] == "Optimal"
+
+    def test_correction_result_keys_present(self, correction_base_data):
+        result = solve_coffee_correction(correction_base_data)
+
+        assert set(result.keys()) == {
+            "status",
+            "total_cost",
+            "final_orders",
+            "corrections",
+            "inventory_levels",
+        }
+
+    def test_correction_total_cost_is_positive(self, correction_base_data):
+        result = solve_coffee_correction(correction_base_data)
+
+        assert result["total_cost"] is not None
+        assert result["total_cost"] > 0
+
+    def test_correction_increases_orders_when_demand_is_higher(self, correction_base_data):
+        result = solve_coffee_correction(correction_base_data)
+
+        assert result["status"] == "Optimal"
+
+        increases = [
+            c for c in result["corrections"]
+            if c["type"] == "increase"
+        ]
+
+        assert len(increases) > 0
+
+        total_increase = sum(c["quantity_kg"] for c in increases)
+
+        # 3 dni, każdy dzień: było 20 kg, potrzeba 25 kg,
+        # więc spodziewamy się łącznie 15 kg korekty.
+        assert abs(total_increase - 15.0) < 1e-6
+
+    def test_correction_final_orders_are_at_least_previous_plan(self, correction_base_data):
+        result = solve_coffee_correction(correction_base_data)
+
+        assert result["status"] == "Optimal"
+
+        total_by_day = {}
+
+        for order in result["final_orders"]:
+            day = order["day"]
+            total_by_day[day] = total_by_day.get(day, 0.0) + order["quantity_kg"]
+
+        for day in correction_base_data["T"]:
+            assert total_by_day[day] >= 20.0 - 1e-6
+
+    def test_correction_does_not_create_decreases_when_demand_is_higher(self, correction_base_data):
+        result = solve_coffee_correction(correction_base_data)
+
+        decreases = [
+            c for c in result["corrections"]
+            if c["type"] == "decrease"
+        ]
+
+        assert decreases == []
+
+    def test_correction_inventory_levels_non_negative(self, correction_base_data):
+        result = solve_coffee_correction(correction_base_data)
+
+        assert result["status"] == "Optimal"
+
+        for inv in result["inventory_levels"]:
+            assert inv["level_kg"] >= -1e-6
+
+    def test_correction_inventory_does_not_exceed_capacity(self, correction_base_data):
+        result = solve_coffee_correction(correction_base_data)
+
+        assert result["status"] == "Optimal"
+
+        for inv in result["inventory_levels"]:
+            building_id = inv["building_id"]
+            assert inv["level_kg"] <= correction_base_data["V_max"][building_id] + 1e-6
+
+    def test_no_correction_needed_when_previous_plan_matches_demand(self, correction_base_data):
+        data = copy.deepcopy(correction_base_data)
+
+        data["Demand"] = {
+            ("B0", 1): 20.0,
+            ("B0", 2): 20.0,
+            ("B0", 3): 20.0,
+        }
+
+        result = solve_coffee_correction(data)
+
+        assert result["status"] == "Optimal"
+        assert result["corrections"] == []
+
+    def test_correction_decreases_orders_when_demand_is_lower(self, correction_base_data):
+        data = copy.deepcopy(correction_base_data)
+
+        # Poprzedni plan: 20 kg dziennie.
+        # Nowy popyt: 15 kg dziennie.
+        # Model powinien zmniejszyć zamówienia o 5 kg dziennie.
+        data["Demand"] = {
+            ("B0", 1): 15.0,
+            ("B0", 2): 15.0,
+            ("B0", 3): 15.0,
+        }
+
+        result = solve_coffee_correction(data)
+
+        assert result["status"] == "Optimal"
+
+        decreases = [
+            c for c in result["corrections"]
+            if c["type"] == "decrease"
+        ]
+
+        assert len(decreases) > 0
+
+        total_decrease = sum(c["quantity_kg"] for c in decreases)
+
+        assert abs(total_decrease - 15.0) < 1e-6
+
+    def test_correction_limit_too_low_makes_model_non_optimal(self, correction_base_data):
+        data = copy.deepcopy(correction_base_data)
+
+        # Potrzeba +5 kg dziennie,
+        # ale pozwalamy skorygować tylko +2 kg dziennie.
+        data["R_max"] = {
+            ("D0", "B0", 1): 2.0,
+            ("D0", "B0", 2): 2.0,
+            ("D0", "B0", 3): 2.0,
+        }
+
+        result = solve_coffee_correction(data)
+
+        assert result["status"] != "Optimal"
+        assert result["total_cost"] is None
+        assert result["final_orders"] == []
+        assert result["corrections"] == []
+        assert result["inventory_levels"] == []
