@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import {
   Card, Text, Badge, Button,
   Table, TableHead, TableRow, TableHeaderCell, TableBody, TableCell,
+  TextInput,
 } from '@tremor/react'
 import { api } from '../api/client'
-import type { OrderRecord } from '../api/api'
+import type { OrderRecord, CorrectionResponse } from '../api/api'
 import Modal from '../components/Modal'
 
 const STATUSES = ['confirmed', 'pending', 'cancelled'] as const
@@ -19,6 +20,8 @@ const statusConfig: Record<OrderStatus, { label: string; color: 'blue' | 'yellow
 type ModalState =
   | { type: 'none' }
   | { type: 'changeStatus'; order: OrderRecord; selected: OrderStatus }
+  | { type: 'runCorrection'; order: OrderRecord; name: string }
+  | { type: 'correctionResult'; order: OrderRecord; result: CorrectionResponse; confirming: boolean; confirmed: boolean }
 
 export default function Orders() {
   const [orders, setOrders] = useState<OrderRecord[]>([])
@@ -41,6 +44,15 @@ export default function Orders() {
     setModal({ type: 'changeStatus', order, selected: (order.status ?? 'confirmed') as OrderStatus })
   }
 
+  function openCorrectionModal(order: OrderRecord) {
+    setError('')
+    setModal({
+      type: 'runCorrection',
+      order,
+      name: `Correction ${new Date().toLocaleDateString('en-US')}`,
+    })
+  }
+
   function close() { setModal({ type: 'none' }); setError('') }
 
   async function handleStatusSave() {
@@ -52,6 +64,34 @@ export default function Orders() {
     } catch (e: any) {
       setError(e?.response?.data?.detail ?? 'Update failed')
     } finally { setSaving(false) }
+  }
+
+  async function handleCorrectionSubmit() {
+    if (modal.type !== 'runCorrection') return
+    setSaving(true); setError('')
+    try {
+      const res = await api.optimization.runCorrection({
+        name: modal.name,
+        previous_result_id: modal.order.result_id!,
+      })
+      setModal({ type: 'correctionResult', order: modal.order, result: res.data, confirming: false, confirmed: false })
+    } catch (e: any) {
+      setError(e?.response?.data?.detail ?? 'Correction optimization failed')
+    } finally { setSaving(false) }
+  }
+
+  async function handleConfirmCorrection() {
+    if (modal.type !== 'correctionResult') return
+    setModal({ ...modal, confirming: true })
+    setError('')
+    try {
+      await api.orders.confirmOrders({ result_id: modal.result.result_id })
+      setModal({ ...modal, confirming: false, confirmed: true })
+      load()
+    } catch (e: any) {
+      setError(e?.response?.data?.detail ?? 'Confirmation failed')
+      setModal({ ...modal, confirming: false })
+    }
   }
 
   return (
@@ -117,9 +157,14 @@ export default function Orders() {
                       <Badge color={s.color}>{s.label}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Button size="xs" variant="secondary" onClick={() => openStatusModal(o)}>
-                        Change status
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button size="xs" variant="secondary" onClick={() => openStatusModal(o)}>
+                          Change status
+                        </Button>
+                        <Button size="xs" variant="secondary" onClick={() => openCorrectionModal(o)}>
+                          Run correction
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
@@ -160,6 +205,141 @@ export default function Orders() {
                 Save
               </Button>
               <Button variant="secondary" onClick={close}>Cancel</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {modal.type === 'runCorrection' && (
+        <Modal title="Run correction optimization" onClose={close} maxWidth="max-w-md">
+          <div className="space-y-4">
+            <div className="p-3 rounded-tremor-default bg-tremor-background-muted dark:bg-dark-tremor-background-muted text-xs font-mono space-y-1">
+              <p className="text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                Base order: <span className="text-tremor-content-strong dark:text-dark-tremor-content-strong">{modal.order.id?.slice(0, 8)}…</span>
+              </p>
+              <p className="text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                Cost: <span className="text-tremor-content-strong dark:text-dark-tremor-content-strong">{(modal.order.total_cost_pln ?? 0).toLocaleString('en-US')} PLN</span>
+              </p>
+              <p className="text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                Items: <span className="text-tremor-content-strong dark:text-dark-tremor-content-strong">{modal.order.orders?.length ?? 0} deliveries</span>
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong mb-1">
+                Correction name
+              </label>
+              <TextInput
+                value={modal.name}
+                onValueChange={v => setModal({ ...modal, name: v })}
+                placeholder="e.g. Correction 2024-01-15"
+              />
+            </div>
+
+            <p className="text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+              The optimizer will recalculate the plan using current correction costs and limits
+              configured for each distributor-building pair.
+            </p>
+
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            <div className="flex gap-2 pt-2 border-t border-tremor-border dark:border-dark-tremor-border">
+              <Button onClick={handleCorrectionSubmit} loading={saving} disabled={!modal.name.trim()}>
+                Run optimizer
+              </Button>
+              <Button variant="secondary" onClick={close}>Cancel</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {modal.type === 'correctionResult' && (
+        <Modal title="Correction result" onClose={close} maxWidth="max-w-2xl">
+          <div className="space-y-5">
+            <div className="flex items-center gap-4 flex-wrap">
+              <Badge color={modal.result.status === 'Optimal' ? 'green' : 'red'}>
+                {modal.result.status}
+              </Badge>
+              {modal.result.total_cost_pln != null && (
+                <span className="text-lg font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                  {modal.result.total_cost_pln.toLocaleString('en-US')} PLN
+                </span>
+              )}
+              <span className="text-sm text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                {modal.result.orders.length} deliveries · {modal.result.corrections.length} corrections
+              </span>
+            </div>
+
+            {modal.result.corrections.length > 0 ? (
+              <div>
+                <p className="text-sm font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong mb-2">
+                  Applied corrections
+                </p>
+                <div className="overflow-auto max-h-64 rounded-tremor-default border border-tremor-border dark:border-dark-tremor-border">
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableHeaderCell>Day</TableHeaderCell>
+                        <TableHeaderCell>Distributor</TableHeaderCell>
+                        <TableHeaderCell>Building</TableHeaderCell>
+                        <TableHeaderCell>Tier</TableHeaderCell>
+                        <TableHeaderCell>Type</TableHeaderCell>
+                        <TableHeaderCell>Qty (kg)</TableHeaderCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {modal.result.corrections.map((c, i) => (
+                        <TableRow key={i}>
+                          <TableCell><Text>{c.day}</Text></TableCell>
+                          <TableCell>
+                            <Text className="font-mono text-xs">{c.distributor_id.slice(0, 8)}…</Text>
+                          </TableCell>
+                          <TableCell>
+                            <Text className="font-mono text-xs">{c.building_id.slice(0, 8)}…</Text>
+                          </TableCell>
+                          <TableCell>
+                            <Text>{c.threshold_level === 0 ? 'base' : `T${c.threshold_level}`}</Text>
+                          </TableCell>
+                          <TableCell>
+                            <Badge color={c.type === 'increase' ? 'green' : 'red'}>
+                              {c.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Text className="font-semibold">{c.quantity_kg.toFixed(2)}</Text>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                No corrections needed — the current plan is already optimal.
+              </p>
+            )}
+
+            {modal.result.solver_message && (
+              <p className="text-xs font-mono text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                Solver: {modal.result.solver_message}
+              </p>
+            )}
+
+            {error && <p className="text-sm text-red-500">{error}</p>}
+
+            <div className="flex gap-2 pt-2 border-t border-tremor-border dark:border-dark-tremor-border">
+              {modal.result.status === 'Optimal' && !modal.confirmed && (
+                <Button
+                  onClick={handleConfirmCorrection}
+                  loading={modal.confirming}
+                >
+                  Confirm as new order
+                </Button>
+              )}
+              {modal.confirmed && (
+                <Badge color="green">Order confirmed</Badge>
+              )}
+              <Button variant="secondary" onClick={close}>Close</Button>
             </div>
           </div>
         </Modal>

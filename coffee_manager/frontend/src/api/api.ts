@@ -326,6 +326,67 @@ export interface OptimizationResponse {
   cost_breakdown: CostBreakdown | null;
 }
 
+/** CorrectionRequest */
+export interface CorrectionRequest {
+  /** Name */
+  name: string;
+  /**
+   * Previous Result Id
+   * @format uuid
+   */
+  previous_result_id: string;
+  /** Historical Orders */
+  historical_orders?: Record<string, any> | null;
+}
+
+/** CorrectionItem */
+export interface CorrectionItem {
+  /**
+   * Distributor Id
+   * @format uuid
+   */
+  distributor_id: string;
+  /**
+   * Building Id
+   * @format uuid
+   */
+  building_id: string;
+  /** Day */
+  day: number;
+  /** Threshold Level */
+  threshold_level: number;
+  /** Type */
+  type: string;
+  /** Quantity Kg */
+  quantity_kg: number;
+}
+
+/** CorrectionResponse */
+export interface CorrectionResponse {
+  /**
+   * Scenario Id
+   * @format uuid
+   */
+  scenario_id: string;
+  /**
+   * Result Id
+   * @format uuid
+   */
+  result_id: string;
+  /** Status */
+  status: string;
+  /** Total Cost Pln */
+  total_cost_pln: number | null;
+  /** Solver Message */
+  solver_message: string | null;
+  /** Orders */
+  orders: OrderItem[];
+  /** Corrections */
+  corrections: CorrectionItem[];
+  /** Inventory Levels */
+  inventory_levels: InventoryLevel[];
+}
+
 /** OrderItem */
 export interface OrderItem {
   /**
@@ -1201,6 +1262,27 @@ export class Api<
         path: `/optimization/${resultId}`,
         method: "GET",
         secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @tags Optimization
+     * @name RunCorrectionOptimizationCorrectionPost
+     * @summary Run Correction
+     * @request POST:/optimization/correction
+     * @secure
+     */
+    runCorrectionOptimizationCorrectionPost: (
+      data: CorrectionRequest,
+      params: RequestParams = {},
+    ) =>
+      this.request<CorrectionResponse, HTTPValidationError>({
+        path: `/optimization/correction`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

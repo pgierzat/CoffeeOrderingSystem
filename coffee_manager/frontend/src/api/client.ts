@@ -62,6 +62,7 @@ export const api = {
     listOptimizations: rawApi.optimization.listOptimizationsOptimizationGet,
     runOptimization: rawApi.optimization.runOptimizationOptimizationPost,
     getOptimizationResult: rawApi.optimization.getOptimizationResultOptimizationResultIdGet,
+    runCorrection: rawApi.optimization.runCorrectionOptimizationCorrectionPost,
   },
 
   orders: {
