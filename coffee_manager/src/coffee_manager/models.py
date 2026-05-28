@@ -1,4 +1,5 @@
 import uuid
+
 from sqlalchemy import (
     Boolean,
     Column,
@@ -280,6 +281,11 @@ class OptimizationResult(Base):
         back_populates="result",
         cascade="all, delete-orphan",
     )
+    corrections = relationship(
+        "OptimizationCorrection",
+        back_populates="result",
+        cascade="all, delete-orphan",
+    )
 
 
 class OptimizationOrderItem(Base):
@@ -328,6 +334,33 @@ class OptimizationInventoryLevel(Base):
     __table_args__ = (UniqueConstraint("result_id", "building_id", "day"),)
 
     result = relationship("OptimizationResult", back_populates="inventory_levels")
+
+
+class OptimizationCorrection(Base):
+    __tablename__ = "optimization_corrections"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    result_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("optimization_results.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    distributor_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("distributors.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    building_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("buildings.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    day = Column(Integer, nullable=False)
+    threshold_level = Column(Integer, nullable=False, default=0)
+    type = Column(String(20), nullable=False)  # 'increase' or 'decrease'
+    quantity_kg = Column(Numeric(12, 3), nullable=False)
+
+    result = relationship("OptimizationResult", back_populates="corrections")
 
 
 class Order(Base):

@@ -72,6 +72,54 @@ class DailyDemand(BaseModel):
     demand_kg: float = Field(ge=0)
 
 
+class OrderItem(BaseModel):
+    distributor_id: UUID
+    building_id: UUID
+    day: int = Field(ge=1)
+    threshold_level: int = Field(ge=0)
+    quantity_kg: float = Field(ge=0)
+
+    model_config = {"from_attributes": True}
+
+
+class InventoryLevel(BaseModel):
+    building_id: UUID
+    day: int
+    level_kg: float
+
+    model_config = {"from_attributes": True}
+
+
+class CorrectionRequest(BaseModel):
+    name: str
+    previous_result_id: UUID
+    historical_orders: dict[str, Any] | None = None
+
+
+class CorrectionItem(BaseModel):
+    distributor_id: UUID
+    building_id: UUID
+    day: int = Field(ge=1)
+    threshold_level: int = Field(ge=0)
+    type: str  # 'increase' or 'decrease'
+    quantity_kg: float = Field(ge=0)
+
+    model_config = {"from_attributes": True}
+
+
+class CorrectionResponse(BaseModel):
+    scenario_id: UUID
+    result_id: UUID
+    status: str
+    total_cost_pln: float | None
+    solver_message: str | None
+    orders: list[OrderItem]
+    corrections: list[CorrectionItem]
+    inventory_levels: list[InventoryLevel]
+
+    model_config = {"from_attributes": True}
+
+
 class BuildingCreateRequest(BaseModel):
     name: str
     location: str | None = None
@@ -117,24 +165,6 @@ class ScenarioCreateRequest(BaseModel):
     building_ids: list[str]
     decay_rate: float = Field(ge=0, le=1, default=0.05)
     historical_orders: dict[str, Any] | None = None
-
-
-class OrderItem(BaseModel):
-    distributor_id: UUID
-    building_id: UUID
-    day: int = Field(ge=1)
-    threshold_level: int = Field(ge=0)
-    quantity_kg: float = Field(ge=0)
-
-    model_config = {"from_attributes": True}
-
-
-class InventoryLevel(BaseModel):
-    building_id: UUID
-    day: int
-    level_kg: float
-
-    model_config = {"from_attributes": True}
 
 
 class CostBreakdown(BaseModel):
