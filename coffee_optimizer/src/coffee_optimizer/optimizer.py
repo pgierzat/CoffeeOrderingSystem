@@ -21,13 +21,13 @@ _AMPL_MODEL = r"""
 
     param V_max {B} >= 0;
     param Q {L} >= 0;
-    param P0 {D, T} >= 0;
-    param P {D, T, L} >= 0;
+    param P0 {D, T} >= 0 default 0;
+    param P {D, T, L} >= 0 default 0;
     param C_fix {D, B} >= 0;
     param Demand {B, T} >= 0;
     param I0 {B} >= 0;
     param alpha >= 0, <= 1;
-    param S_avail {D, T} >= 0;
+    param S_avail {D, T} >= 0 default 0;
     param S_max = max {d in D, t in T} S_avail[d,t];
     param LT {D, B} >= 0 integer;
     param H_arrival {D, B, T} >= 0 default 0;

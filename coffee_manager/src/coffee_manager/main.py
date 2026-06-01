@@ -5,7 +5,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
-import coffee_manager.models  # Ensure models are registered
 from coffee_manager.database import Base, engine
 from coffee_manager.routers import (
     api_keys,
