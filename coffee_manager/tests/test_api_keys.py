@@ -64,7 +64,6 @@ def test_create_and_list_api_key(client, auth_headers):
     assert listing.status_code == 200
     items = listing.json()
     assert len(items) == 1
-    # List response omits the raw key (it's only returned once on creation).
     assert items[0].get("key") in (None, "")
 
 

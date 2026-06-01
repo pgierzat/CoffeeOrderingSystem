@@ -1,19 +1,8 @@
-"""Test fixtures for coffee_manager.
-
-We avoid requiring a real Postgres instance by:
-  1) Setting env vars before app import so pydantic-settings loads successfully.
-  2) Monkey-patching the postgres-specific UUID/JSONB column types with
-     dialect-neutral equivalents BEFORE coffee_manager.models is imported.
-  3) Creating an in-memory SQLite engine, building the schema from the
-     SQLAlchemy metadata, and overriding the FastAPI `get_db` dependency.
-"""
-
 from __future__ import annotations
 
 import os
 import uuid as _uuid
 
-# 1) Env vars required by coffee_manager.config.Settings at import time.
 os.environ.setdefault("POSTGRES_USER", "test")
 os.environ.setdefault("POSTGRES_PASSWORD", "test")
 os.environ.setdefault("POSTGRES_DB", "test")
@@ -22,7 +11,6 @@ os.environ.setdefault("POSTGRES_PORT", "5432")
 os.environ.setdefault("JWT_SECRET", "test-secret-for-pytest")
 os.environ.setdefault("OPTIMIZER_URL", "http://optimizer.test")
 
-# 2) Replace postgres UUID/JSONB with sqlite-compatible TypeDecorators.
 import sqlalchemy.dialects.postgresql as _pg
 from sqlalchemy import CHAR, JSON
 from sqlalchemy.types import TypeDecorator
@@ -59,7 +47,6 @@ class _JSONBType(TypeDecorator):
 _pg.UUID = _UUIDType  # type: ignore[assignment]
 _pg.JSONB = _JSONBType  # type: ignore[assignment]
 
-# 3) Now import the app pieces (must come AFTER the patches above).
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
@@ -70,8 +57,6 @@ from passlib.context import CryptContext  # noqa: E402
 
 from coffee_manager import auth as auth_module  # noqa: E402
 
-# Swap bcrypt for pbkdf2_sha256 in tests: passlib 1.7.4 is incompatible with
-# bcrypt >= 5.x. pbkdf2 is pure-python, dependency-free, and ~10x faster here.
 _test_ctx = CryptContext(schemes=["pbkdf2_sha256"], pbkdf2_sha256__rounds=1000)
 auth_module.pwd_context = _test_ctx
 
@@ -108,8 +93,10 @@ def db(session_factory) -> Session:
 
 
 @pytest.fixture()
-def client(session_factory):
-    """TestClient with get_db overridden to use the test session factory."""
+def client(engine, session_factory, monkeypatch):
+    import coffee_manager.main as main_module
+
+    monkeypatch.setattr(main_module, "engine", engine)
 
     def _override_get_db():
         s = session_factory()

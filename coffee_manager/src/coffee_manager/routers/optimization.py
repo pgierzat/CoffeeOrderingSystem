@@ -448,15 +448,60 @@ def run_correction(
                 )
         optimizer_payload["historical_arrivals"] = arrivals
 
+    optimizer_payload["previous_orders"] = [
+        {
+            "distributor_id": str(item.distributor_id),
+            "building_id": str(item.building_id),
+            "day": item.day,
+            "threshold_level": item.threshold_level,
+            "quantity_kg": float(item.quantity_kg),
+        }
+        for item in prev_result.order_items
+    ]
+
+    correction_costs = []
+    correction_limits = []
+    for d in distributors:
+        for p in d.delivery_params:
+            if p.building_id not in building_ids:
+                continue
+            for day in planning_days:
+                correction_costs.append(
+                    {
+                        "distributor_id": str(d.id),
+                        "building_id": str(p.building_id),
+                        "day": day,
+                        "cost_per_kg": float(p.correction_cost_per_kg),
+                    }
+                )
+                correction_limits.append(
+                    {
+                        "distributor_id": str(d.id),
+                        "building_id": str(p.building_id),
+                        "day": day,
+                        "max_correction_kg": float(p.max_correction_kg),
+                    }
+                )
+    optimizer_payload["correction_costs"] = correction_costs
+    optimizer_payload["correction_limits"] = correction_limits
+
     try:
         response = httpx.post(
-            f"{settings.OPTIMIZER_URL}/optimize", json=optimizer_payload, timeout=60.0
+            f"{settings.OPTIMIZER_URL}/optimize/correction",
+            json=optimizer_payload,
+            timeout=60.0,
         )
         response.raise_for_status()
         opt_result = response.json()
-    except Exception as e:
+    except httpx.HTTPStatusError as e:
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Optimizer error: {e}"
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Optimizer error: {e.response.text}",
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Optimizer unreachable: {e}",
         )
 
     new_result = OptimizationResult(
@@ -476,7 +521,7 @@ def run_correction(
     db.flush()
 
     new_orders = {}
-    for item in opt_result.get("orders", []):
+    for item in opt_result.get("final_orders", []):
         oi = OptimizationOrderItem(
             result_id=new_result.id,
             distributor_id=item["distributor_id"],
