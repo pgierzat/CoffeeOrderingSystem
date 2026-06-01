@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session, selectinload
 from coffee_manager.auth import get_current_user
 from coffee_manager.database import get_db
 from coffee_manager.models import OptimizationResult, Order, OrderItem, User
+from coffee_manager.schemas import OrderRecord
 from coffee_manager.schemas import OrderItem as OrderItemSchema
-from coffee_manager.schemas import OrderRecord, OrderStatusUpdate
+from coffee_manager.schemas import OrderStatusUpdate
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -67,32 +68,14 @@ def confirm_orders(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Optimization result not found",
         )
-
-    # Check if an order already exists for this scenario (e.g. from a previous result)
-    existing_order = (
-        db.query(Order).filter(Order.scenario_id == result.scenario_id).first()
+    order = Order(
+        result_id=result.id,
+        scenario_id=result.scenario_id,
+        total_cost_pln=result.total_cost_pln,
+        confirmed_by=current_user.id,
+        status="confirmed",
     )
-
-    if existing_order:
-        # Update existing order with the new result
-        order = existing_order
-        order.result_id = result.id
-        order.total_cost_pln = result.total_cost_pln
-        order.confirmed_by = current_user.id
-        order.status = "confirmed"
-        # Delete old items to replace them with new ones
-        db.query(OrderItem).filter(OrderItem.order_id == order.id).delete()
-    else:
-        # Create a new order
-        order = Order(
-            result_id=result.id,
-            scenario_id=result.scenario_id,
-            total_cost_pln=result.total_cost_pln,
-            confirmed_by=current_user.id,
-            status="confirmed",
-        )
-        db.add(order)
-
+    db.add(order)
     db.flush()
     for item in result.order_items:
         db.add(
