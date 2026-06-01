@@ -23,13 +23,13 @@ _AMPL_MODEL = r"""
     param Q {L} >= 0;
     param P0 {D, T} >= 0 default 0;
     param P {D, T, L} >= 0 default 0;
-    param C_fix {D, B} >= 0;
+    param C_fix {D, B} >= 0 default 0;
     param Demand {B, T} >= 0;
     param I0 {B} >= 0;
     param alpha >= 0, <= 1;
     param S_avail {D, T} >= 0 default 0;
     param S_max = max {d in D, t in T} S_avail[d,t];
-    param LT {D, B} >= 0 integer;
+    param LT {D, B} >= 0 integer default 0;
     param H_arrival {D, B, T} >= 0 default 0;
 
     var x0 {D, B, T} >= 0;
@@ -39,8 +39,8 @@ _AMPL_MODEL = r"""
     var y_rab {D, B, T, L} binary;
 
     minimize Total_Cost:
-        sum {t in T, b in B, d in D} P0[d,t] * x0[d,b,t] +
-        sum {t in T, b in B, d in D, l in L} P[d,t,l] * x[d,b,t,l] +
+        sum {t in T, b in B, d in D} (P0[d,t] + 1e-7) * x0[d,b,t] +
+        sum {t in T, b in B, d in D, l in L} (P[d,t,l] + 1e-7) * x[d,b,t,l] +
         sum {t in T, b in B, d in D} C_fix[d,b] * y_skl[d,b,t];
 
     s.t. Init_Inv {b in B}:
@@ -57,7 +57,10 @@ _AMPL_MODEL = r"""
         I[b,ord(t)] <= V_max[b];
 
     s.t. Link_Order_Binary {d in D, b in B, t in T}:
-        x0[d,b,t] <= S_avail[d,t] * y_skl[d,b,t];
+        x0[d,b,t] + sum {l in L} x[d,b,t,l] <= S_avail[d,t] * y_skl[d,b,t];
+
+    s.t. Min_Order_Quantity {d in D, b in B, t in T}:
+        x0[d,b,t] + sum {l in L} x[d,b,t,l] >= 0.001 * y_skl[d,b,t];
 
     s.t. Max_Availability {d in D, t in T}:
         sum {b in B} (x0[d,b,t] + sum {l in L} x[d,b,t,l]) <= S_avail[d,t];
@@ -106,8 +109,11 @@ def _build_ampl_data(request: OptimizationRequest) -> dict:
     P0: dict[tuple, float] = {}
     S_avail: dict[tuple, float] = {}
     P: dict[tuple, float] = {}
+    T_set = set(T)
     for dist in request.distributors:
         for dp in dist.daily_prices:
+            if dp.day not in T_set:
+                continue
             P0[(dist.id, dp.day)] = dp.base_price
             S_avail[(dist.id, dp.day)] = dp.availability_kg
             tier_prices = {tier.level: tier.unit_price for tier in dp.discount_tiers}
@@ -128,11 +134,13 @@ def _build_ampl_data(request: OptimizationRequest) -> dict:
     Demand: dict[tuple, float] = {}
     for building in request.buildings:
         for dd in building.daily_demand:
-            Demand[(building.id, dd.day)] = dd.demand_kg
+            if dd.day in T_set:
+                Demand[(building.id, dd.day)] = dd.demand_kg
 
     H_arrival: dict[tuple, float] = {
         (ha.distributor_id, ha.building_id, ha.day): ha.quantity_kg
         for ha in request.historical_arrivals
+        if ha.day in T_set
     }
 
     return {
@@ -174,7 +182,7 @@ def _load_ampl(ampl: AMPL, data: dict) -> None:
         ampl.get_parameter("H_arrival").set_values(data["H_arrival"])
 
 
-def _extract_results(ampl: AMPL) -> OptimizationResult:
+def _extract_results(ampl: AMPL, data: dict) -> OptimizationResult:
     solve_result = str(ampl.get_value("solve_result"))
     status = _SOLVE_STATUS_MAP.get(solve_result, "Not Solved")
 
@@ -193,7 +201,7 @@ def _extract_results(ampl: AMPL) -> OptimizationResult:
                     building_id=str(b),
                     day=int(t),
                     threshold_level=0,
-                    quantity_kg=float(val),
+                    quantity_kg=round(float(val), 3),
                 )
             )
 
@@ -205,7 +213,7 @@ def _extract_results(ampl: AMPL) -> OptimizationResult:
                     building_id=str(b),
                     day=int(t),
                     threshold_level=int(lvl),
-                    quantity_kg=float(val),
+                    quantity_kg=round(float(val), 3),
                 )
             )
 
@@ -217,11 +225,48 @@ def _extract_results(ampl: AMPL) -> OptimizationResult:
                 InventoryLevel(
                     building_id=str(b),
                     day=int(t),
-                    level_kg=float(val),
+                    level_kg=round(float(val), 3),
                 )
             )
 
     total_cost = float(ampl.get_objective("Total_Cost").value())
+
+    # Calculate breakdown
+    purchase_base = 0.0
+    purchase_actual = 0.0
+    fixed_delivery = 0.0
+
+    # Get data for breakdown
+    P0 = data["P0"]
+    P = data["P"]
+    C_fix = data["C_fix"]
+
+    for (d, b, t), val in x0_vals.items():
+        if val > 1e-6:
+            p0 = P0.get((d, t), 0.0)
+            purchase_base += p0 * val
+            purchase_actual += p0 * val
+
+    for (d, b, t, lvl), val in x_vals.items():
+        if val > 1e-6:
+            p0 = P0.get((d, t), 0.0)
+            p_disc = P.get((d, t, lvl), p0)
+            purchase_base += p0 * val
+            purchase_actual += p_disc * val
+
+    y_vals: dict = ampl.get_variable("y_skl").get_values().to_dict()
+    for (d, b, t), val in y_vals.items():
+        if val > 0.5:
+            fixed_delivery += C_fix.get((d, b), 0.0)
+
+    from coffee_optimizer.models import CostBreakdown
+
+    cost_breakdown = CostBreakdown(
+        purchase_base=purchase_base,
+        purchase_discount=purchase_actual - purchase_base,
+        fixed_delivery=fixed_delivery,
+        total=total_cost,
+    )
 
     return OptimizationResult(
         status="Optimal",
@@ -229,16 +274,30 @@ def _extract_results(ampl: AMPL) -> OptimizationResult:
         solver_message=solve_result,
         orders=orders,
         inventory_levels=inventory_levels,
+        cost_breakdown=cost_breakdown,
     )
+
+
+import os
+
+from amplpy import AMPL, modules
 
 
 def run_optimization(request: OptimizationRequest) -> OptimizationResult:
     data = _build_ampl_data(request)
+
+    # Activate license if key is provided
+    license_key = os.environ.get("AMPL_LICENSET_KEY")
+    if license_key:
+        modules.activate(license_key)
+
     ampl = AMPL()
     try:
         _load_ampl(ampl, data)
-        ampl.set_option("solver", "cbc")
+        # Use highs solver with tight tolerances for stability and precision
+        ampl.set_option("solver", "highs")
+        ampl.set_option("highs_options", "mip_rel_gap=1e-6 mip_abs_gap=1e-6 threads=1")
         ampl.solve()
-        return _extract_results(ampl)
+        return _extract_results(ampl, data)
     finally:
         ampl.close()

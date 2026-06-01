@@ -35,7 +35,9 @@ from coffee_manager.schemas import OrderItem as OrderItemSchema
 router = APIRouter(prefix="/optimization", tags=["Optimization"])
 
 
-def _distributors_payload(distributors, building_ids: list[str]) -> list[dict]:
+def _distributors_payload(
+    distributors, building_ids: list[str], horizon_days: int
+) -> list[dict]:
     return [
         {
             "id": str(d.id),
@@ -54,6 +56,7 @@ def _distributors_payload(distributors, building_ids: list[str]) -> list[dict]:
                     ],
                 }
                 for p in d.daily_prices
+                if p.day <= horizon_days
             ],
             "delivery_params": [
                 {
@@ -69,7 +72,7 @@ def _distributors_payload(distributors, building_ids: list[str]) -> list[dict]:
     ]
 
 
-def _buildings_payload(buildings) -> list[dict]:
+def _buildings_payload(buildings, horizon_days: int) -> list[dict]:
     return [
         {
             "id": str(b.id),
@@ -78,6 +81,7 @@ def _buildings_payload(buildings) -> list[dict]:
             "daily_demand": [
                 {"day": dd.day, "demand_kg": float(dd.demand_kg)}
                 for dd in b.daily_demand
+                if dd.day <= horizon_days
             ],
         }
         for b in buildings
@@ -262,8 +266,10 @@ def run_optimization(
         "planning_days": planning_days,
         "decay_rate": body.decay_rate,
         "historical_arrivals": _parse_historical_arrivals(body.historical_orders),
-        "distributors": _distributors_payload(distributors, body.building_ids),
-        "buildings": _buildings_payload(buildings),
+        "distributors": _distributors_payload(
+            distributors, body.building_ids, body.planning_horizon_days
+        ),
+        "buildings": _buildings_payload(buildings, body.planning_horizon_days),
     }
 
     try:
@@ -384,69 +390,29 @@ def run_correction(
 
     planning_days = list(range(1, scenario.planning_horizon_days + 1))
 
+    # Base historical arrivals from scenario
+    historical_arrivals = _parse_historical_arrivals(scenario.historical_orders)
+
+    # Override/merge with historical arrivals from request body if any
+    if body.historical_orders:
+        req_arrivals = _parse_historical_arrivals(body.historical_orders)
+        # Create a map for merging: key is distributor_id:building_id
+        arrivals_map = {
+            f"{a['distributor_id']}:{a['building_id']}": a for a in historical_arrivals
+        }
+        for ra in req_arrivals:
+            arrivals_map[f"{ra['distributor_id']}:{ra['building_id']}"] = ra
+        historical_arrivals = list(arrivals_map.values())
+
     optimizer_payload = {
         "planning_days": planning_days,
         "decay_rate": float(scenario.decay_rate),
-        "historical_arrivals": [],
-        "distributors": [
-            {
-                "id": str(d.id),
-                "daily_prices": [
-                    {
-                        "day": p.day,
-                        "base_price": float(p.base_price),
-                        "availability_kg": float(p.availability_kg),
-                        "discount_tiers": [
-                            {
-                                "level": t.level,
-                                "quantity_kg": float(t.quantity_kg),
-                                "unit_price": float(t.unit_price),
-                            }
-                            for t in p.discount_tiers
-                        ],
-                    }
-                    for p in d.daily_prices
-                ],
-                "delivery_params": [
-                    {
-                        "building_id": str(p.building_id),
-                        "lead_time_days": p.lead_time_days,
-                        "fixed_cost_pln": float(p.fixed_cost_pln),
-                    }
-                    for p in d.delivery_params
-                    if p.building_id in building_ids
-                ],
-            }
-            for d in distributors
-        ],
-        "buildings": [
-            {
-                "id": str(b.id),
-                "max_capacity_kg": float(b.max_capacity_kg),
-                "initial_inventory_kg": float(b.current_inventory_kg),
-                "daily_demand": [
-                    {"day": dd.day, "demand_kg": float(dd.demand_kg)}
-                    for dd in b.daily_demand
-                ],
-            }
-            for b in buildings
-        ],
+        "historical_arrivals": historical_arrivals,
+        "distributors": _distributors_payload(
+            distributors, building_ids, scenario.planning_horizon_days
+        ),
+        "buildings": _buildings_payload(buildings, scenario.planning_horizon_days),
     }
-
-    if body.historical_orders:
-        arrivals = []
-        for k, v in body.historical_orders.items():
-            parts = k.split(":")
-            if len(parts) == 2:
-                arrivals.append(
-                    {
-                        "distributor_id": parts[0],
-                        "building_id": parts[1],
-                        "day": 1,
-                        "quantity_kg": float(v),
-                    }
-                )
-        optimizer_payload["historical_arrivals"] = arrivals
 
     optimizer_payload["previous_orders"] = [
         {
@@ -454,7 +420,7 @@ def run_correction(
             "building_id": str(item.building_id),
             "day": item.day,
             "threshold_level": item.threshold_level,
-            "quantity_kg": float(item.quantity_kg),
+            "quantity_kg": round(float(item.quantity_kg), 3),
         }
         for item in prev_result.order_items
     ]
@@ -563,7 +529,7 @@ def run_correction(
     for key in all_keys:
         old_q = old_orders.get(key, 0.0)
         new_q = new_orders.get(key, 0.0)
-        if abs(new_q - old_q) > 1e-6:
+        if abs(new_q - old_q) > 1e-3:
             diff = new_q - old_q
             corr = OptimizationCorrection(
                 result_id=new_result.id,
