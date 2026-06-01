@@ -33,7 +33,6 @@ rebuild:
 	docker compose up -d
 
 db-init:
-	docker exec -i coffee_postgres_db psql -U coffee_user -d coffee_db -f /docker-entrypoint-initdb.d/schema.sql
 	@echo "Waiting for backend to be ready..."
 	@until curl -sf http://localhost:8000/health > /dev/null 2>&1; do sleep 1; done
 	@docker exec -i coffee_manager_api python3 - < coffee_manager/scripts/create_admin.py
