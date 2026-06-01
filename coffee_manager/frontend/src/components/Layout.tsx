@@ -15,6 +15,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const handleLogout = () => {
     localStorage.removeItem('auth')
+    localStorage.removeItem('auth_token')
     navigate('/login')
   }
 

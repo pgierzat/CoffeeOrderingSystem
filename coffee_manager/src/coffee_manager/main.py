@@ -1,18 +1,55 @@
-from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import text
-from coffee_manager.database import get_db
+import traceback
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse
+
+from coffee_manager.database import Base, engine
+from coffee_manager.routers import (
+    api_keys,
+    auth,
+    buildings,
+    distributors,
+    inventory,
+    optimization,
+    orders,
+)
 
 
-@app.get("/ping-db")
-def test_db(db: Session = Depends(get_db)):
-    try:
-        result = db.execute(text("SELECT 1")).fetchone()
-        return {
-            "message": "Database connection successful",
-            "db_response": list(result) if result else None,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Bootstrap: Ensuring database tables exist...")
+    Base.metadata.create_all(bind=engine)
+    print("Bootstrap: Database tables ready.")
+    yield
+
+
+app = FastAPI(title="Coffee Supply Management API", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.exception_handler(Exception)
+async def debug_exception_handler(request: Request, exc: Exception):
+    return PlainTextResponse(traceback.format_exc(), status_code=500)
+
+
+app.include_router(auth.router)
+app.include_router(distributors.router)
+app.include_router(api_keys.router)
+app.include_router(buildings.router)
+app.include_router(inventory.router)
+app.include_router(orders.router)
+app.include_router(optimization.router)
+
+
+@app.get("/health", tags=["System"])
+def health_check():
+    return {"status": "ok", "service": "coffee-supply-api", "version": "1.0.0"}

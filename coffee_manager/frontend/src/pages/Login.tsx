@@ -1,20 +1,31 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Text, TextInput, Button } from '@tremor/react'
+import { api } from '../api/client'
 
 export default function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (username === 'admin' && password === 'admin') {
+    setError('')
+    setLoading(true)
+    try {
+      const res = await api.auth.login({ username, password })
+      if (res.data.token) {
+        localStorage.setItem('auth_token', res.data.token)
+        api.setSecurityData(res.data.token)
+      }
       localStorage.setItem('auth', 'true')
       navigate('/dashboard')
-    } else {
+    } catch {
       setError('Invalid credentials')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -57,11 +68,10 @@ export default function Login() {
               />
             </div>
             {error && <Text className="text-red-500 text-sm">{error}</Text>}
-            <Button type="submit" className="w-full">Sign in</Button>
+            <Button type="submit" loading={loading} className="w-full">
+              Sign in
+            </Button>
           </form>
-          <Text className="text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle text-center mt-4">
-            Demo: admin / admin
-          </Text>
         </Card>
         <div className="text-center mt-4">
           <a

@@ -1,23 +1,42 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Card, Text, Button, Badge, Metric, Flex,
   Table, TableHead, TableRow, TableHeaderCell, TableBody, TableCell,
   Select, SelectItem, TextInput, NumberInput,
 } from '@tremor/react'
-import { mockOptimizationResult, mockDistributors, mockBuildings } from '../data/mock'
+import { api } from '../api/client'
+import type { BuildingResponse, DistributorResponse, OptimizationResponse } from '../api/api'
+
+function avgDemand(b: BuildingResponse): number {
+  if (!b.daily_demand?.length) return 0
+  return +(b.daily_demand.reduce((s, d) => s + (d.demand_kg ?? 0), 0) / b.daily_demand.length).toFixed(1)
+}
 
 export default function Optimization() {
-  const [ran, setRan] = useState(false)
-  const [running, setRunning] = useState(false)
+  const [distributors, setDistributors] = useState<DistributorResponse[]>([])
+  const [buildings, setBuildings] = useState<BuildingResponse[]>([])
+  const [selectedDist, setSelectedDist] = useState<Set<string>>(new Set())
+  const [selectedBuild, setSelectedBuild] = useState<Set<string>>(new Set())
   const [scenarioName, setScenarioName] = useState('')
   const [horizon, setHorizon] = useState('14')
   const [alpha, setAlpha] = useState<number>(0.05)
-  const [selectedDist, setSelectedDist] = useState<Set<string>>(
-    new Set(mockDistributors.map(d => d.id))
-  )
-  const [selectedBuild, setSelectedBuild] = useState<Set<string>>(
-    new Set(mockBuildings.map(b => b.id))
-  )
+  const [running, setRunning] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [result, setResult] = useState<OptimizationResponse | null>(null)
+  const [error, setError] = useState('')
+  const [confirmed, setConfirmed] = useState(false)
+
+  useEffect(() => {
+    Promise.all([
+      api.distributors.listDistributors(),
+      api.buildings.listBuildings(),
+    ]).then(([distRes, buildRes]) => {
+      setDistributors(distRes.data)
+      setSelectedDist(new Set(distRes.data.map(d => d.id!).filter(Boolean)))
+      setBuildings(buildRes.data)
+      setSelectedBuild(new Set(buildRes.data.map(b => b.id!).filter(Boolean)))
+    }).catch(console.error)
+  }, [])
 
   const toggle = (set: Set<string>, id: string) => {
     const s = new Set(set)
@@ -25,12 +44,45 @@ export default function Optimization() {
     return s
   }
 
-  const handleRun = () => {
+  const handleRun = async () => {
     setRunning(true)
-    setTimeout(() => { setRunning(false); setRan(true) }, 1800)
+    setError('')
+    setResult(null)
+    setConfirmed(false)
+    try {
+      const res = await api.optimization.runOptimization({
+        name: scenarioName || `Scenario ${new Date().toLocaleDateString()}`,
+        planning_horizon_days: parseInt(horizon),
+        distributor_ids: [...selectedDist],
+        building_ids: [...selectedBuild],
+        decay_rate: alpha,
+      })
+      setResult(res.data)
+    } catch (e: any) {
+      setError(e?.response?.data?.detail ?? 'Optimization failed')
+    } finally {
+      setRunning(false)
+    }
   }
 
-  const result = mockOptimizationResult
+  const handleConfirm = async () => {
+    if (!result?.result_id) return
+    setConfirming(true)
+    try {
+      await api.orders.confirmOrders({ result_id: result.result_id })
+      setConfirmed(true)
+    } catch (e: any) {
+      setError(e?.response?.data?.detail ?? 'Failed to confirm order')
+    } finally {
+      setConfirming(false)
+    }
+  }
+
+  const distName = (id?: string) =>
+    distributors.find(d => d.id === id)?.username ?? id?.slice(0, 8) ?? '—'
+  const buildName = (id?: string) =>
+    buildings.find(b => b.id === id)?.name ?? id?.slice(0, 8) ?? '—'
+
   const canRun = selectedDist.size > 0 && selectedBuild.size > 0
 
   return (
@@ -96,22 +148,27 @@ export default function Optimization() {
                 Distributors (D)
               </label>
               <div className="space-y-2">
-                {mockDistributors.map(d => (
-                  <label key={d.id} className="flex items-center gap-2 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={selectedDist.has(d.id)}
-                      onChange={() => setSelectedDist(toggle(selectedDist, d.id))}
-                      className="rounded border-gray-300 text-blue-600"
-                    />
-                    <span className="text-sm text-tremor-content-strong dark:text-dark-tremor-content-strong">
-                      {d.name}
-                    </span>
-                    <span className="text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
-                      {d.base_price} PLN/kg · LT {d.lead_time_days}d
-                    </span>
-                  </label>
-                ))}
+                {distributors.map(d => {
+                  const basePrice = d.daily_prices?.[0]?.base_price
+                  const leadTime = d.delivery_params?.[0]?.lead_time_days
+                  return (
+                    <label key={d.id} className="flex items-center gap-2 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={selectedDist.has(d.id!)}
+                        onChange={() => setSelectedDist(toggle(selectedDist, d.id!))}
+                        className="rounded border-gray-300 text-blue-600"
+                      />
+                      <span className="text-sm text-tremor-content-strong dark:text-dark-tremor-content-strong">
+                        {d.username}
+                      </span>
+                      <span className="text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
+                        {basePrice != null ? `${basePrice} PLN/kg` : ''}
+                        {leadTime != null ? ` · LT ${leadTime}d` : ''}
+                      </span>
+                    </label>
+                  )
+                })}
               </div>
             </div>
 
@@ -120,19 +177,19 @@ export default function Optimization() {
                 Buildings (B)
               </label>
               <div className="space-y-2">
-                {mockBuildings.map(b => (
+                {buildings.map(b => (
                   <label key={b.id} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={selectedBuild.has(b.id)}
-                      onChange={() => setSelectedBuild(toggle(selectedBuild, b.id))}
+                      checked={selectedBuild.has(b.id!)}
+                      onChange={() => setSelectedBuild(toggle(selectedBuild, b.id!))}
                       className="rounded border-gray-300 text-blue-600"
                     />
                     <span className="text-sm text-tremor-content-strong dark:text-dark-tremor-content-strong">
                       {b.name}
                     </span>
                     <span className="text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle">
-                      {b.daily_demand_kg} kg/day
+                      {avgDemand(b)} kg/day
                     </span>
                   </label>
                 ))}
@@ -149,32 +206,41 @@ export default function Optimization() {
                 Select at least one distributor and one building
               </Text>
             )}
+            {error && <Text className="text-xs text-red-500">{error}</Text>}
           </div>
         </div>
       </Card>
 
-      {ran && (
+      {result && (
         <>
           <div className="grid grid-cols-3 gap-4 mb-5">
             <Card>
               <Text>Total cost</Text>
-              <Metric>{result.total_cost_pln.toLocaleString('en-US')} PLN</Metric>
-              <Badge color="green" size="xs" className="mt-2">optimal</Badge>
+              <Metric>{(result.total_cost_pln ?? 0).toLocaleString('en-US')} PLN</Metric>
+              <Badge color={result.status === 'Optimal' ? 'green' : 'red'} size="xs" className="mt-2">
+                {result.status}
+              </Badge>
             </Card>
             <Card>
               <Text>Purchase (after discounts)</Text>
               <Metric>
-                {(result.cost_breakdown.purchase_base + result.cost_breakdown.purchase_discount)
-                  .toLocaleString('en-US')} PLN
+                {(
+                  (result.cost_breakdown?.purchase_base ?? 0) +
+                  (result.cost_breakdown?.purchase_discount ?? 0)
+                ).toLocaleString('en-US')} PLN
               </Metric>
-              <Text className="text-xs text-green-600 mt-1">
-                −{Math.abs(result.cost_breakdown.purchase_discount).toLocaleString('en-US')} PLN savings
-              </Text>
+              {(result.cost_breakdown?.purchase_discount ?? 0) !== 0 && (
+                <Text className="text-xs text-green-600 mt-1">
+                  −{Math.abs(result.cost_breakdown!.purchase_discount!).toLocaleString('en-US')} PLN savings
+                </Text>
+              )}
             </Card>
             <Card>
               <Text>Delivery costs (C_fix)</Text>
-              <Metric>{result.cost_breakdown.fixed_delivery.toLocaleString('en-US')} PLN</Metric>
-              <Text className="text-xs mt-1">{result.orders.length} deliveries total</Text>
+              <Metric>
+                {(result.cost_breakdown?.fixed_delivery ?? 0).toLocaleString('en-US')} PLN
+              </Metric>
+              <Text className="text-xs mt-1">{result.orders?.length ?? 0} deliveries total</Text>
             </Card>
           </div>
 
@@ -183,7 +249,19 @@ export default function Optimization() {
               <p className="text-sm font-medium text-tremor-content-emphasis dark:text-dark-tremor-content-emphasis">
                 Order schedule
               </p>
-              <Button size="xs" color="green">Confirm schedule</Button>
+              {confirmed ? (
+                <Badge color="green">Confirmed</Badge>
+              ) : (
+                <Button
+                  size="xs"
+                  color="green"
+                  onClick={handleConfirm}
+                  loading={confirming}
+                  disabled={confirming || result.status !== 'Optimal'}
+                >
+                  Confirm schedule
+                </Button>
+              )}
             </Flex>
             <Table>
               <TableHead>
@@ -192,27 +270,28 @@ export default function Optimization() {
                   <TableHeaderCell>Distributor (d)</TableHeaderCell>
                   <TableHeaderCell>Building (b)</TableHeaderCell>
                   <TableHeaderCell>Quantity x [kg]</TableHeaderCell>
-                  <TableHeaderCell>P₀ [PLN/kg]</TableHeaderCell>
-                  <TableHeaderCell>Value</TableHeaderCell>
+                  <TableHeaderCell>Tier</TableHeaderCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {result.orders.map((o, i) => (
+                {result.orders?.map((o, i) => (
                   <TableRow key={i}>
                     <TableCell><Badge color="blue" size="xs">t={o.day}</Badge></TableCell>
-                    <TableCell><Text>{o.distributor}</Text></TableCell>
-                    <TableCell><Text>{o.building}</Text></TableCell>
+                    <TableCell><Text>{distName(o.distributor_id)}</Text></TableCell>
+                    <TableCell><Text>{buildName(o.building_id)}</Text></TableCell>
                     <TableCell><Text>{o.quantity_kg} kg</Text></TableCell>
-                    <TableCell><Text>{o.unit_price.toFixed(2)}</Text></TableCell>
                     <TableCell>
-                      <Text className="font-medium">
-                        {(o.quantity_kg * o.unit_price).toLocaleString('en-US')} PLN
-                      </Text>
+                      <Text>{o.threshold_level === 0 ? 'base' : `tier ${o.threshold_level}`}</Text>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            {result.solver_message && (
+              <Text className="text-xs text-tremor-content-subtle dark:text-dark-tremor-content-subtle mt-3">
+                Solver: {result.solver_message}
+              </Text>
+            )}
           </Card>
         </>
       )}

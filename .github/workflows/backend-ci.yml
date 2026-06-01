@@ -25,7 +25,7 @@ jobs:
     - name: Set up python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.10"
+        python-version: "3.12"
 
     - name: Install Poetry
       working-directory: .
@@ -36,6 +36,10 @@ jobs:
     - name: Install dependencies
       run: poetry install --no-interaction --no-root
 
+    - name: Install AMPL solver modules
+      if: matrix.folder == 'coffee_optimizer'
+      run: poetry run python -m amplpy.modules install cbc
+
     - name: Lint code with Ruff
       run: |
         poetry run ruff check .
@@ -44,6 +48,10 @@ jobs:
       run: |
         poetry run ruff format --check .
 
+    - name: Run tests
+      run: |
+        poetry run pytest
 
-#    - name: Run tests
-#     run: poetry run pytest
+    - name: Build Docker Images
+      working-directory: .
+      run: make build
