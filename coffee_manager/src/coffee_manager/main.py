@@ -1,8 +1,12 @@
 import traceback
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
+import coffee_manager.models  # Ensure models are registered
+from coffee_manager.database import Base, engine
 from coffee_manager.routers import (
     api_keys,
     auth,
@@ -13,7 +17,16 @@ from coffee_manager.routers import (
     orders,
 )
 
-app = FastAPI(title="Coffee Supply Management API", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("Bootstrap: Ensuring database tables exist...")
+    Base.metadata.create_all(bind=engine)
+    print("Bootstrap: Database tables ready.")
+    yield
+
+
+app = FastAPI(title="Coffee Supply Management API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
