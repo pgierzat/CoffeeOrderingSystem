@@ -60,7 +60,7 @@ services:
         container_name: coffee_optimizer_api
         restart: always
         environment:
-            - AMPL_LICENSET_KEY=d5dd75c9-587f-47b2-ba36-672279fcb06c
+            - AMPL_LICENSET_KEY=${AMPL_LICENSET_KEY}
         ports:
             - "8001:8001"
         volumes:
