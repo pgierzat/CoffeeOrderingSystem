@@ -22,7 +22,7 @@ _CORRECTION_AMPL_MODEL = r"""
     set L ordered;
 
     param V_max {B} >= 0;
-    param Q {L} >= 0;
+    param Q {D, L} >= 0;
     param P0 {D, T} >= 0 default 0;
     param P {D, T, L} >= 0 default 0;
     param C_fix {D, B} >= 0 default 0;
@@ -138,15 +138,15 @@ _CORRECTION_AMPL_MODEL = r"""
 
     # Ilość poniżej pierwszego progu
     s.t. Threshold_0_Max {d in D, b in B, t in T}:
-        x0_final[d,b,t] <= Q[first(L)];
+        x0_final[d,b,t] <= Q[d,first(L)];
 
     s.t. Threshold_0_Min {d in D, b in B, t in T}:
-        x0_final[d,b,t] >= Q[first(L)] * y_rab[d,b,t,first(L)];
+        x0_final[d,b,t] >= Q[d,first(L)] * y_rab[d,b,t,first(L)];
 
     # Ilości między progami
     s.t. Threshold_L_Max_Normal {d in D, b in B, t in T, l in L: l <> last(L)}:
         x_final[d,b,t,l] <=
-            (Q[next(l,L)] - Q[l]) * y_rab[d,b,t,l];
+            (Q[d,next(l,L)] - Q[d,l]) * y_rab[d,b,t,l];
 
     # Ostatni próg
     s.t. Threshold_L_Max_Last {d in D, b in B, t in T, l in L: l == last(L)}:
@@ -155,7 +155,7 @@ _CORRECTION_AMPL_MODEL = r"""
     # Nie można wejść w wyższy próg bez wypełnienia niższego
     s.t. Threshold_L_Min_Normal {d in D, b in B, t in T, l in L: l <> last(L)}:
         x_final[d,b,t,l] >=
-            (Q[next(l,L)] - Q[l]) * y_rab[d,b,t,next(l,L)];
+            (Q[d,next(l,L)] - Q[d,l]) * y_rab[d,b,t,next(l,L)];
 """
 
 
@@ -177,11 +177,19 @@ def _build_correction_ampl_data(request: CorrectionOptimizationRequest) -> dict:
 
     L = sorted(all_levels)
 
-    Q: dict[int, float] = {}
+    # Q[distributor, level] = quantity threshold; per-distributor tier structure
+    Q: dict[tuple, float] = {}
     for dist in request.distributors:
         for dp in dist.daily_prices:
             for tier in dp.discount_tiers:
-                Q.setdefault(tier.level, tier.quantity_kg)
+                Q.setdefault((dist.id, tier.level), tier.quantity_kg)
+    # Ensure every (distributor, level) in D x L is defined and non-decreasing in
+    # level: a distributor missing a level inherits the previous level's
+    # threshold (a zero-width band), so AMPL never sees an undefined Q[d,l].
+    for dist in request.distributors:
+        prev = 0.0
+        for level in L:
+            prev = Q.setdefault((dist.id, level), prev)
 
     P0: dict[tuple, float] = {}
     S_avail: dict[tuple, float] = {}
@@ -485,7 +493,7 @@ def run_correction_optimization(
     data = _build_correction_ampl_data(request)
 
     # Activate license if key is provided
-    license_key = os.environ.get("AMPL_LICENSET_KEY")
+    license_key = os.environ.get("AMPL_LICENSE_KEY")
     if license_key:
         modules.activate(license_key)
 

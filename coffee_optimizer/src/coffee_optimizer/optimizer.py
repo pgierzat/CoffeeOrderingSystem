@@ -20,7 +20,7 @@ _AMPL_MODEL = r"""
     set L ordered;
 
     param V_max {B} >= 0;
-    param Q {L} >= 0;
+    param Q {D, L} >= 0;
     param P0 {D, T} >= 0 default 0;
     param P {D, T, L} >= 0 default 0;
     param C_fix {D, B} >= 0 default 0;
@@ -66,19 +66,19 @@ _AMPL_MODEL = r"""
         sum {b in B} (x0[d,b,t] + sum {l in L} x[d,b,t,l]) <= S_avail[d,t];
 
     s.t. Threshold_0_Max {d in D, b in B, t in T}:
-        x0[d,b,t] <= Q[first(L)];
+        x0[d,b,t] <= Q[d,first(L)];
 
     s.t. Threshold_0_Min {d in D, b in B, t in T}:
-        x0[d,b,t] >= Q[first(L)] * y_rab[d,b,t,first(L)];
+        x0[d,b,t] >= Q[d,first(L)] * y_rab[d,b,t,first(L)];
 
     s.t. Threshold_L_Max_Normal {d in D, b in B, t in T, l in L: l <> last(L)}:
-        x[d,b,t,l] <= (Q[next(l,L)] - Q[l]) * y_rab[d,b,t,l];
+        x[d,b,t,l] <= (Q[d,next(l,L)] - Q[d,l]) * y_rab[d,b,t,l];
 
     s.t. Threshold_L_Max_Last {d in D, b in B, t in T, l in L: l == last(L)}:
         x[d,b,t,l] <= S_max * y_rab[d,b,t,l];
 
     s.t. Threshold_L_Min_Normal {d in D, b in B, t in T, l in L: l <> last(L)}:
-        x[d,b,t,l] >= (Q[next(l,L)] - Q[l]) * y_rab[d,b,t,next(l,L)];
+        x[d,b,t,l] >= (Q[d,next(l,L)] - Q[d,l]) * y_rab[d,b,t,next(l,L)];
 """
 
 
@@ -87,7 +87,6 @@ def _build_ampl_data(request: OptimizationRequest) -> dict:
     D = [d.id for d in request.distributors]
     B = [b.id for b in request.buildings]
 
-    # Collect all unique discount levels; assumes a shared tier structure across distributors
     all_levels: set[int] = set()
     for dist in request.distributors:
         for dp in dist.daily_prices:
@@ -99,12 +98,15 @@ def _build_ampl_data(request: OptimizationRequest) -> dict:
         )
     L = sorted(all_levels)
 
-    # Q[level] = quantity threshold; first occurrence wins when distributors differ
-    Q: dict[int, float] = {}
+    Q: dict[tuple, float] = {}
     for dist in request.distributors:
         for dp in dist.daily_prices:
             for tier in dp.discount_tiers:
-                Q.setdefault(tier.level, tier.quantity_kg)
+                Q.setdefault((dist.id, tier.level), tier.quantity_kg)
+    for dist in request.distributors:
+        prev = 0.0
+        for level in L:
+            prev = Q.setdefault((dist.id, level), prev)
 
     P0: dict[tuple, float] = {}
     S_avail: dict[tuple, float] = {}
@@ -118,7 +120,6 @@ def _build_ampl_data(request: OptimizationRequest) -> dict:
             S_avail[(dist.id, dp.day)] = dp.availability_kg
             tier_prices = {tier.level: tier.unit_price for tier in dp.discount_tiers}
             for level in L:
-                # Fall back to base_price for any tier missing from this distributor/day
                 P[(dist.id, dp.day, level)] = tier_prices.get(level, dp.base_price)
 
     C_fix: dict[tuple, float] = {}
@@ -231,12 +232,10 @@ def _extract_results(ampl: AMPL, data: dict) -> OptimizationResult:
 
     total_cost = float(ampl.get_objective("Total_Cost").value())
 
-    # Calculate breakdown
     purchase_base = 0.0
     purchase_actual = 0.0
     fixed_delivery = 0.0
 
-    # Get data for breakdown
     P0 = data["P0"]
     P = data["P"]
     C_fix = data["C_fix"]
@@ -286,15 +285,13 @@ from amplpy import AMPL, modules
 def run_optimization(request: OptimizationRequest) -> OptimizationResult:
     data = _build_ampl_data(request)
 
-    # Activate license if key is provided
-    license_key = os.environ.get("AMPL_LICENSET_KEY")
+    license_key = os.environ.get("AMPL_LICENSE_KEY")
     if license_key:
         modules.activate(license_key)
 
     ampl = AMPL()
     try:
         _load_ampl(ampl, data)
-        # Use highs solver with tight tolerances for stability and precision
         ampl.set_option("solver", "highs")
         ampl.set_option("highs_options", "mip_rel_gap=1e-6 mip_abs_gap=1e-6 threads=1")
         ampl.solve()

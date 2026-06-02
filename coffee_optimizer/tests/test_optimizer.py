@@ -73,8 +73,8 @@ class TestBuildAmplData:
 
     def test_discount_thresholds(self):
         data = _build_ampl_data(SAMPLE_REQUEST)
-        assert data["Q"][1] == 30.0
-        assert data["Q"][2] == 60.0
+        assert data["Q"][("D1", 1)] == 30.0
+        assert data["Q"][("D1", 2)] == 60.0
 
     def test_prices(self):
         data = _build_ampl_data(SAMPLE_REQUEST)
