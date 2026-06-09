@@ -13,7 +13,7 @@ import {
     TextInput,
 } from "@tremor/react";
 import { api } from "../api/client";
-import type { OrderRecord, CorrectionResponse } from "../api/api";
+import type { OrderRecord, CorrectionResponse, BuildingResponse, DistributorResponse } from "../api/api";
 import Modal from "../components/Modal";
 
 const STATUSES = ["confirmed", "pending", "cancelled"] as const;
@@ -30,6 +30,7 @@ const statusConfig: Record<
 
 type ModalState =
     | { type: "none" }
+    | { type: "viewDetails"; order: OrderRecord }
     | { type: "changeStatus"; order: OrderRecord; selected: OrderStatus }
     | { type: "runCorrection"; order: OrderRecord; name: string }
     | {
@@ -46,6 +47,8 @@ export default function Orders() {
     const [modal, setModal] = useState<ModalState>({ type: "none" });
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
+    const [buildingMap, setBuildingMap] = useState<Record<string, string>>({});
+    const [distributorMap, setDistributorMap] = useState<Record<string, string>>({});
 
     const load = () => {
         api.orders
@@ -64,6 +67,20 @@ export default function Orders() {
 
     useEffect(() => {
         load();
+        api.buildings.listBuildings()
+            .then((res) => {
+                const map: Record<string, string> = {};
+                (res.data as BuildingResponse[]).forEach((b) => { map[b.id] = b.name; });
+                setBuildingMap(map);
+            })
+            .catch(console.error);
+        api.distributors.listDistributors()
+            .then((res) => {
+                const map: Record<string, string> = {};
+                (res.data as DistributorResponse[]).forEach((d) => { map[d.id] = d.username; });
+                setDistributorMap(map);
+            })
+            .catch(console.error);
     }, []);
 
     function openStatusModal(order: OrderRecord) {
@@ -73,6 +90,11 @@ export default function Orders() {
             order,
             selected: (order.status ?? "confirmed") as OrderStatus,
         });
+    }
+
+    function openDetailsModal(order: OrderRecord) {
+        setError("");
+        setModal({ type: "viewDetails", order });
     }
 
     function openCorrectionModal(order: OrderRecord) {
@@ -239,6 +261,15 @@ export default function Orders() {
                                                     size="xs"
                                                     variant="secondary"
                                                     onClick={() =>
+                                                        openDetailsModal(o)
+                                                    }
+                                                >
+                                                    View details
+                                                </Button>
+                                                <Button
+                                                    size="xs"
+                                                    variant="secondary"
+                                                    onClick={() =>
                                                         openStatusModal(o)
                                                     }
                                                 >
@@ -262,6 +293,109 @@ export default function Orders() {
                     </Table>
                 )}
             </Card>
+
+            {modal.type === "viewDetails" && (
+                <Modal
+                    title="Order details"
+                    onClose={close}
+                    maxWidth="max-w-3xl"
+                >
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                            <div>
+                                <span className="text-tremor-content-subtle dark:text-dark-tremor-content-subtle">Order ID</span>
+                                <p className="font-mono text-xs text-tremor-content-strong dark:text-dark-tremor-content-strong mt-0.5">{modal.order.id}</p>
+                            </div>
+                            <div>
+                                <span className="text-tremor-content-subtle dark:text-dark-tremor-content-subtle">Scenario ID</span>
+                                <p className="font-mono text-xs text-tremor-content-strong dark:text-dark-tremor-content-strong mt-0.5">{modal.order.scenario_id}</p>
+                            </div>
+                            <div>
+                                <span className="text-tremor-content-subtle dark:text-dark-tremor-content-subtle">Total cost</span>
+                                <p className="font-semibold text-tremor-content-strong dark:text-dark-tremor-content-strong mt-0.5">
+                                    {(modal.order.total_cost_pln ?? 0).toLocaleString("en-US")} PLN
+                                </p>
+                            </div>
+                            <div>
+                                <span className="text-tremor-content-subtle dark:text-dark-tremor-content-subtle">Date</span>
+                                <p className="text-tremor-content-strong dark:text-dark-tremor-content-strong mt-0.5">
+                                    {modal.order.created_at
+                                        ? new Date(modal.order.created_at).toLocaleString("en-US")
+                                        : "—"}
+                                </p>
+                            </div>
+                            <div>
+                                <span className="text-tremor-content-subtle dark:text-dark-tremor-content-subtle">Status</span>
+                                <p className="mt-0.5">
+                                    <Badge color={statusConfig[(modal.order.status ?? "confirmed") as OrderStatus]?.color ?? "blue"}>
+                                        {statusConfig[(modal.order.status ?? "confirmed") as OrderStatus]?.label ?? modal.order.status}
+                                    </Badge>
+                                </p>
+                            </div>
+                            <div>
+                                <span className="text-tremor-content-subtle dark:text-dark-tremor-content-subtle">Confirmed by</span>
+                                <p className="font-mono text-xs text-tremor-content-strong dark:text-dark-tremor-content-strong mt-0.5">
+                                    {modal.order.confirmed_by ?? "—"}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <p className="text-sm font-medium text-tremor-content-strong dark:text-dark-tremor-content-strong mb-2">
+                                Deliveries ({modal.order.orders?.length ?? 0})
+                            </p>
+                            {(modal.order.orders?.length ?? 0) === 0 ? (
+                                <p className="text-sm text-tremor-content-subtle dark:text-dark-tremor-content-subtle">No deliveries.</p>
+                            ) : (
+                                <div className="overflow-auto max-h-72 rounded-tremor-default border border-tremor-border dark:border-dark-tremor-border">
+                                    <Table>
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableHeaderCell>Day</TableHeaderCell>
+                                                <TableHeaderCell>Distributor</TableHeaderCell>
+                                                <TableHeaderCell>Building</TableHeaderCell>
+                                                <TableHeaderCell>Tier</TableHeaderCell>
+                                                <TableHeaderCell>Qty (kg)</TableHeaderCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {modal.order.orders.map((item, i) => (
+                                                <TableRow key={i}>
+                                                    <TableCell><Text>{item.day}</Text></TableCell>
+                                                    <TableCell>
+                                                        <Text>
+                                                            {distributorMap[item.distributor_id] ?? item.distributor_id.slice(0, 8) + "…"}
+                                                        </Text>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Text>
+                                                            {buildingMap[item.building_id] ?? item.building_id.slice(0, 8) + "…"}
+                                                        </Text>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Text>
+                                                            {item.threshold_level === 0 ? "base" : `T${item.threshold_level}`}
+                                                        </Text>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Text className="font-semibold">
+                                                            {item.quantity_kg.toFixed(2)}
+                                                        </Text>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex pt-2 border-t border-tremor-border dark:border-dark-tremor-border">
+                            <Button variant="secondary" onClick={close}>Close</Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
 
             {modal.type === "changeStatus" && (
                 <Modal
